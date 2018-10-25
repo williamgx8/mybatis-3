@@ -43,7 +43,9 @@ public class PropertyParser {
    */
   public static final String KEY_DEFAULT_VALUE_SEPARATOR = KEY_PREFIX + "default-value-separator";
 
+  //是否开启默认值，可以修改
   private static final String ENABLE_DEFAULT_VALUE = "false";
+  //默认多值得分割符，可以修改
   private static final String DEFAULT_VALUE_SEPARATOR = ":";
 
   private PropertyParser() {
@@ -75,6 +77,9 @@ public class PropertyParser {
     public String handleToken(String content) {
       if (variables != null) {
         String key = content;
+        /**
+         * 如果开启了默认值，将动态表达式转变成默认值
+         */
         if (enableDefaultValue) {
           final int separatorIndex = content.indexOf(defaultValueSeparator);
           String defaultValue = null;

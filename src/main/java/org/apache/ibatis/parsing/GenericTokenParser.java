@@ -20,7 +20,9 @@ package org.apache.ibatis.parsing;
  */
 public class GenericTokenParser {
 
+  //动态占位符的前缀  @{   #{  等
   private final String openToken;
+  //动态占位符的后缀   }
   private final String closeToken;
   private final TokenHandler handler;
 
@@ -36,6 +38,7 @@ public class GenericTokenParser {
     }
     // search open token
     int start = text.indexOf(openToken, 0);
+    //没有占位符直接返回
     if (start == -1) {
       return text;
     }
@@ -44,6 +47,7 @@ public class GenericTokenParser {
     final StringBuilder builder = new StringBuilder();
     StringBuilder expression = null;
     while (start > -1) {
+      //处理占位符前缀可能存在的\，比如$\{
       if (start > 0 && src[start - 1] == '\\') {
         // this open token is escaped. remove the backslash and continue.
         builder.append(src, offset, start - offset - 1).append(openToken);
@@ -59,12 +63,14 @@ public class GenericTokenParser {
         offset = start + openToken.length();
         int end = text.indexOf(closeToken, offset);
         while (end > -1) {
+          //处理占位符后缀中可能存在的\，比如\}
           if (end > offset && src[end - 1] == '\\') {
             // this close token is escaped. remove the backslash and continue.
             expression.append(src, offset, end - offset - 1).append(closeToken);
             offset = end + closeToken.length();
             end = text.indexOf(closeToken, offset);
           } else {
+            //获得包裹在占位符中的内容表达式
             expression.append(src, offset, end - offset);
             offset = end + closeToken.length();
             break;
