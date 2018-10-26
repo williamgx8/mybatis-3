@@ -30,6 +30,15 @@ public class GetFieldInvoker implements Invoker {
     this.field = field;
   }
 
+  /**
+   * 获取属性Field在target实例中的值，由于Reflector解析时存在没有getter的属性，
+   * 所以当遇到这种情况需要setAccessible(true)
+   * @param target
+   * @param args
+   * @return
+   * @throws IllegalAccessException
+   * @throws InvocationTargetException
+   */
   @Override
   public Object invoke(Object target, Object[] args) throws IllegalAccessException, InvocationTargetException {
     try {
