@@ -7,6 +7,7 @@ import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.reflection.SystemMetaObject;
 import org.apache.ibatis.reflection.property.PropertyTokenizer;
 import org.apache.ibatis.reflection.wrapper.BeanWrapper;
+import org.apache.ibatis.submitted.result_handler_type.ObjectFactory;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -17,56 +18,72 @@ import java.util.HashMap;
  */
 public class BeanWrapperTest {
 
-    @Test
-    public void getBeanPropertyTest() {
-        RichType richType = new RichType();
-        richType.setRichType(new RichType());
-        richType.getRichType().setRichMap(new HashMap<>());
-        richType.getRichType().getRichMap().put("name", "zhangsan");
-        BeanWrapper beanWrapper = initBeanWrapper(richType);
-        PropertyTokenizer propertyTokenizer = new PropertyTokenizer("richType.richMap.name");
-        Object value = beanWrapper.get(propertyTokenizer);
+	@Test
+	public void getBeanPropertyTest() {
+		RichType richType = new RichType();
+		richType.setRichType(new RichType());
+		richType.getRichType().setRichMap(new HashMap<>());
+		richType.getRichType().getRichMap().put("name", "zhangsan");
+		BeanWrapper beanWrapper = initBeanWrapper(richType);
+		PropertyTokenizer propertyTokenizer = new PropertyTokenizer("richType.richMap.name");
+		Object value = beanWrapper.get(propertyTokenizer);
+
+		Assert.assertTrue(value instanceof RichType);
+		RichType rt = (RichType) value;
+		Assert.assertEquals(rt.getRichMap().size(), 1);
+		Assert.assertEquals(rt.getRichMap().get("name"), "zhangsan");
+	}
+
+	private BeanWrapper initBeanWrapper(RichType richType) {
+		MetaObject metaObject = MetaObject
+			.forObject(richType, SystemMetaObject.DEFAULT_OBJECT_FACTORY,
+				new CustomBeanWrapperFactory(), new DefaultReflectorFactory());
+		return new BeanWrapper(metaObject, richType);
+	}
 
 
-        Assert.assertTrue(value instanceof RichType);
-        RichType rt = (RichType) value;
-        Assert.assertEquals(rt.getRichMap().size(), 1);
-        Assert.assertEquals(rt.getRichMap().get("name"), "zhangsan");
-    }
+	@Test
+	public void getCollectionNoChildTest() {
+		RichType richType = new RichType();
+		richType.getRichList().add("zhangsan");
 
-    private BeanWrapper initBeanWrapper(RichType richType) {
-        MetaObject metaObject = MetaObject.forObject(richType, SystemMetaObject.DEFAULT_OBJECT_FACTORY, new CustomBeanWrapperFactory(), new DefaultReflectorFactory());
-        return new BeanWrapper(metaObject, richType);
-    }
+		BeanWrapper beanWrapper = initBeanWrapper(richType);
+		PropertyTokenizer propertyTokenizer = new PropertyTokenizer("richList[1]");
+		Object value = beanWrapper.get(propertyTokenizer);
 
-
-    @Test
-    public void getCollectionNoChildTest() {
-        RichType richType = new RichType();
-        richType.getRichList().add("zhangsan");
-
-        BeanWrapper beanWrapper = initBeanWrapper(richType);
-        PropertyTokenizer propertyTokenizer = new PropertyTokenizer("richList[1]");
-        Object value = beanWrapper.get(propertyTokenizer);
-
-        Assert.assertTrue(value instanceof String);
-        Assert.assertEquals((String) value, "zhangsan");
-    }
+		Assert.assertTrue(value instanceof String);
+		Assert.assertEquals((String) value, "zhangsan");
+	}
 
 
-    @Test
-    public void getCollectionHasChildTest() {
-        RichType richType = new RichType();
+	@Test
+	public void getCollectionHasChildTest() {
+		RichType richType = new RichType();
 
-        RichType rt = new RichType();
-        rt.setRichProperty("lisi");
-        richType.getRichList().add(rt);
+		RichType rt = new RichType();
+		rt.setRichProperty("lisi");
+		richType.getRichList().add(rt);
 
-        BeanWrapper beanWrapper = initBeanWrapper(richType);
-        PropertyTokenizer propertyTokenizer = new PropertyTokenizer("richList[1].richProperty");
-        Object value = beanWrapper.get(propertyTokenizer);
+		BeanWrapper beanWrapper = initBeanWrapper(richType);
+		PropertyTokenizer propertyTokenizer = new PropertyTokenizer("richList[1].richProperty");
+		Object value = beanWrapper.get(propertyTokenizer);
 
-        Assert.assertTrue(value instanceof RichType);
-        Assert.assertEquals(((RichType) value).getRichProperty(), "lisi");
-    }
+		Assert.assertTrue(value instanceof RichType);
+		Assert.assertEquals(((RichType) value).getRichProperty(), "lisi");
+	}
+
+
+	@Test
+	public void getGetterTypeTest() {
+		RichType richType = new RichType();
+		RichType rt = new RichType();
+		rt.setRichProperty("lisi");
+		richType.getRichList().add(rt);
+
+		BeanWrapper beanWrapper = initBeanWrapper(richType);
+		Class<?> getterType = beanWrapper.getGetterType("richList[1].richProperty");
+
+		Assert.assertEquals(String.class, getterType);
+	}
+
 }

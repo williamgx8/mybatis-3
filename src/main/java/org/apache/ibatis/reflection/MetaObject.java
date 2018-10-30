@@ -1,17 +1,17 @@
 /**
- *    Copyright 2009-2018 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2018 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.reflection;
 
@@ -32,134 +32,170 @@ import org.apache.ibatis.reflection.wrapper.ObjectWrapperFactory;
  */
 public class MetaObject {
 
-  private final Object originalObject;
-  private final ObjectWrapper objectWrapper;
-  private final ObjectFactory objectFactory;
-  private final ObjectWrapperFactory objectWrapperFactory;
-  private final ReflectorFactory reflectorFactory;
+	//真正原始对象
+	private final Object originalObject;
+	//包装对象，比如BeanWrapper、CollectionWrapper等
+	private final ObjectWrapper objectWrapper;
+	private final ObjectFactory objectFactory;
+	private final ObjectWrapperFactory objectWrapperFactory;
+	private final ReflectorFactory reflectorFactory;
 
-  private MetaObject(Object object, ObjectFactory objectFactory, ObjectWrapperFactory objectWrapperFactory, ReflectorFactory reflectorFactory) {
-    this.originalObject = object;
-    this.objectFactory = objectFactory;
-    this.objectWrapperFactory = objectWrapperFactory;
-    this.reflectorFactory = reflectorFactory;
+	private MetaObject(Object object, ObjectFactory objectFactory,
+		ObjectWrapperFactory objectWrapperFactory, ReflectorFactory reflectorFactory) {
+		this.originalObject = object;
+		this.objectFactory = objectFactory;
+		this.objectWrapperFactory = objectWrapperFactory;
+		this.reflectorFactory = reflectorFactory;
 
-    if (object instanceof ObjectWrapper) {
-      this.objectWrapper = (ObjectWrapper) object;
-    } else if (objectWrapperFactory.hasWrapperFor(object)) {
-      this.objectWrapper = objectWrapperFactory.getWrapperFor(this, object);
-    } else if (object instanceof Map) {
-      this.objectWrapper = new MapWrapper(this, (Map) object);
-    } else if (object instanceof Collection) {
-      this.objectWrapper = new CollectionWrapper(this, (Collection) object);
-    } else {
-      this.objectWrapper = new BeanWrapper(this, object);
-    }
-  }
+		//根据ObjectWrapper的具体实现分别设置
+		if (object instanceof ObjectWrapper) {
+			this.objectWrapper = (ObjectWrapper) object;
+		} else if (objectWrapperFactory.hasWrapperFor(object)) {
+			this.objectWrapper = objectWrapperFactory.getWrapperFor(this, object);
+		} else if (object instanceof Map) {
+			this.objectWrapper = new MapWrapper(this, (Map) object);
+		} else if (object instanceof Collection) {
+			this.objectWrapper = new CollectionWrapper(this, (Collection) object);
+		} else {
+			this.objectWrapper = new BeanWrapper(this, object);
+		}
+	}
 
-  public static MetaObject forObject(Object object, ObjectFactory objectFactory, ObjectWrapperFactory objectWrapperFactory, ReflectorFactory reflectorFactory) {
-    if (object == null) {
-      return SystemMetaObject.NULL_META_OBJECT;
-    } else {
-      return new MetaObject(object, objectFactory, objectWrapperFactory, reflectorFactory);
-    }
-  }
+	/**
+	 * 创建MetaObject
+	 */
+	public static MetaObject forObject(Object object, ObjectFactory objectFactory,
+		ObjectWrapperFactory objectWrapperFactory, ReflectorFactory reflectorFactory) {
+		if (object == null) {
+			return SystemMetaObject.NULL_META_OBJECT;
+		} else {
+			return new MetaObject(object, objectFactory, objectWrapperFactory, reflectorFactory);
+		}
+	}
 
-  public ObjectFactory getObjectFactory() {
-    return objectFactory;
-  }
+	public ObjectFactory getObjectFactory() {
+		return objectFactory;
+	}
 
-  public ObjectWrapperFactory getObjectWrapperFactory() {
-    return objectWrapperFactory;
-  }
+	public ObjectWrapperFactory getObjectWrapperFactory() {
+		return objectWrapperFactory;
+	}
 
-  public ReflectorFactory getReflectorFactory() {
-	return reflectorFactory;
-  }
+	public ReflectorFactory getReflectorFactory() {
+		return reflectorFactory;
+	}
 
-  public Object getOriginalObject() {
-    return originalObject;
-  }
+	public Object getOriginalObject() {
+		return originalObject;
+	}
 
-  public String findProperty(String propName, boolean useCamelCaseMapping) {
-    return objectWrapper.findProperty(propName, useCamelCaseMapping);
-  }
+	public String findProperty(String propName, boolean useCamelCaseMapping) {
+		return objectWrapper.findProperty(propName, useCamelCaseMapping);
+	}
 
-  public String[] getGetterNames() {
-    return objectWrapper.getGetterNames();
-  }
+	public String[] getGetterNames() {
+		return objectWrapper.getGetterNames();
+	}
 
-  public String[] getSetterNames() {
-    return objectWrapper.getSetterNames();
-  }
+	public String[] getSetterNames() {
+		return objectWrapper.getSetterNames();
+	}
 
-  public Class<?> getSetterType(String name) {
-    return objectWrapper.getSetterType(name);
-  }
+	public Class<?> getSetterType(String name) {
+		return objectWrapper.getSetterType(name);
+	}
 
-  public Class<?> getGetterType(String name) {
-    return objectWrapper.getGetterType(name);
-  }
+	public Class<?> getGetterType(String name) {
+		return objectWrapper.getGetterType(name);
+	}
 
-  public boolean hasSetter(String name) {
-    return objectWrapper.hasSetter(name);
-  }
+	public boolean hasSetter(String name) {
+		return objectWrapper.hasSetter(name);
+	}
 
-  public boolean hasGetter(String name) {
-    return objectWrapper.hasGetter(name);
-  }
+	public boolean hasGetter(String name) {
+		return objectWrapper.hasGetter(name);
+	}
 
-  public Object getValue(String name) {
-    PropertyTokenizer prop = new PropertyTokenizer(name);
-    if (prop.hasNext()) {
-      MetaObject metaValue = metaObjectForProperty(prop.getIndexedName());
-      if (metaValue == SystemMetaObject.NULL_META_OBJECT) {
-        return null;
-      } else {
-        return metaValue.getValue(prop.getChildren());
-      }
-    } else {
-      return objectWrapper.get(prop);
-    }
-  }
+	/**
+	 * 获取属性表达式对应的值
+	 *
+	 * @param name 属性表达式
+	 */
+	public Object getValue(String name) {
+		PropertyTokenizer prop = new PropertyTokenizer(name);
+		if (prop.hasNext()) {
+			//存在子属性首先要先获取父属性，因为子属性是在父属性实例中存在的
+			MetaObject metaValue = metaObjectForProperty(prop.getIndexedName());
+			if (metaValue == SystemMetaObject.NULL_META_OBJECT) {
+				return null;
+			} else {
+				//用父属性对应MetaObject再去获取子属性的值
+				return metaValue.getValue(prop.getChildren());
+			}
+		} else {
+			//不存在多层属性，直接获取
+			return objectWrapper.get(prop);
+		}
+	}
 
-  public void setValue(String name, Object value) {
-    PropertyTokenizer prop = new PropertyTokenizer(name);
-    if (prop.hasNext()) {
-      MetaObject metaValue = metaObjectForProperty(prop.getIndexedName());
-      if (metaValue == SystemMetaObject.NULL_META_OBJECT) {
-        if (value == null) {
-          // don't instantiate child path if value is null
-          return;
-        } else {
-          metaValue = objectWrapper.instantiatePropertyValue(name, prop, objectFactory);
-        }
-      }
-      metaValue.setValue(prop.getChildren(), value);
-    } else {
-      objectWrapper.set(prop, value);
-    }
-  }
+	/**
+	 * 给属性表达式对应属性设置value
+	 *
+	 * @param name 属性表达式
+	 * @param value 待设置的值
+	 */
+	public void setValue(String name, Object value) {
+		PropertyTokenizer prop = new PropertyTokenizer(name);
+		if (prop.hasNext()) {
+			/**
+			 *  属性表达式存在多层，比如 richType.richField，首先判断第一层的richType属性是否存在，
+			 *  如果不存在先要创建该对象，然后再将value塞入刚创建的对象中
+			 */
+			MetaObject metaValue = metaObjectForProperty(prop.getIndexedName());
+			//不存在多层对象
+			if (metaValue == SystemMetaObject.NULL_META_OBJECT) {
+				if (value == null) {
+					// don't instantiate child path if value is null
+					//没有属性值
+					return;
+				} else {
+					//上一级对象不存在，创建该对象实例
+					metaValue = objectWrapper.instantiatePropertyValue(name, prop, objectFactory);
+				}
+			}
+			//设置value
+			metaValue.setValue(prop.getChildren(), value);
+		} else {
+			//只存在一级，直接设置到当前对象
+			objectWrapper.set(prop, value);
+		}
+	}
 
-  public MetaObject metaObjectForProperty(String name) {
-    Object value = getValue(name);
-    return MetaObject.forObject(value, objectFactory, objectWrapperFactory, reflectorFactory);
-  }
+	/**
+	 * 创建属性表达式对应的属性的MetaObject
+	 */
+	public MetaObject metaObjectForProperty(String name) {
+		//获取属性值，解析到最底层子属性
+		Object value = getValue(name);
+		//封装MetaObject返回
+		return MetaObject.forObject(value, objectFactory, objectWrapperFactory, reflectorFactory);
+	}
 
-  public ObjectWrapper getObjectWrapper() {
-    return objectWrapper;
-  }
+	public ObjectWrapper getObjectWrapper() {
+		return objectWrapper;
+	}
 
-  public boolean isCollection() {
-    return objectWrapper.isCollection();
-  }
+	public boolean isCollection() {
+		return objectWrapper.isCollection();
+	}
 
-  public void add(Object element) {
-    objectWrapper.add(element);
-  }
+	public void add(Object element) {
+		objectWrapper.add(element);
+	}
 
-  public <E> void addAll(List<E> list) {
-    objectWrapper.addAll(list);
-  }
+	public <E> void addAll(List<E> list) {
+		objectWrapper.addAll(list);
+	}
 
 }
