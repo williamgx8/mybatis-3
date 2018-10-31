@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.ibatis.datasource.unpooled;
 
 import java.io.PrintWriter;
@@ -191,10 +192,9 @@ public class UnpooledDataSource implements DataSource {
 
 	/**
 	 * 获取连接
+	 *
 	 * @param username 账号
 	 * @param password 密码
-	 * @return
-	 * @throws SQLException
 	 */
 	private Connection doGetConnection(String username, String password) throws SQLException {
 		Properties props = new Properties();
@@ -213,15 +213,23 @@ public class UnpooledDataSource implements DataSource {
 	private Connection doGetConnection(Properties properties) throws SQLException {
 		//初始化driver
 		initializeDriver();
+		//获得连接
 		Connection connection = DriverManager.getConnection(url, properties);
+		//配置连接属性
 		configureConnection(connection);
 		return connection;
 	}
 
+	/**
+	 * synchronized修饰防止注册时的并发，比如一个线程在if内但尚未完成注册流程，此时又一个线程判断registeredDrivers
+	 * 还没有driver，又会进入if，造成浪费
+	 */
 	private synchronized void initializeDriver() throws SQLException {
 		if (!registeredDrivers.containsKey(driver)) {
+			//已注册的驱动中没有driver
 			Class<?> driverType;
 			try {
+				//加载driver
 				if (driverClassLoader != null) {
 					driverType = Class.forName(driver, true, driverClassLoader);
 				} else {
@@ -229,8 +237,11 @@ public class UnpooledDataSource implements DataSource {
 				}
 				// DriverManager requires the driver to be loaded via the system ClassLoader.
 				// http://www.kfu.com/~nsayer/Java/dyn-jdbc.html
+				//创建数据库驱动实例
 				Driver driverInstance = (Driver) driverType.newInstance();
+				//创建DriverProxy，并注册到DriverManager的registeredDrivers中
 				DriverManager.registerDriver(new DriverProxy(driverInstance));
+				//放入本类的registeredDrivers
 				registeredDrivers.put(driver, driverInstance);
 			} catch (Exception e) {
 				throw new SQLException("Error setting driver on UnpooledDataSource. Cause: " + e);
@@ -238,6 +249,9 @@ public class UnpooledDataSource implements DataSource {
 		}
 	}
 
+	/**
+	 * 配置Connection属性，对于UnpooledDataSource只有自动提交和默认隔离级别两个
+	 */
 	private void configureConnection(Connection conn) throws SQLException {
 		if (autoCommit != null && autoCommit != conn.getAutoCommit()) {
 			conn.setAutoCommit(autoCommit);
@@ -247,6 +261,9 @@ public class UnpooledDataSource implements DataSource {
 		}
 	}
 
+	/**
+	 * 装饰器模式，只重写了Logger getParentLogger()
+	 */
 	private static class DriverProxy implements Driver {
 
 		private Driver driver;
