@@ -1,17 +1,17 @@
 /**
- *    Copyright 2009-2018 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2018 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.datasource.unpooled;
 
@@ -36,259 +36,275 @@ import org.apache.ibatis.io.Resources;
  * @author Eduardo Macarron
  */
 public class UnpooledDataSource implements DataSource {
-  
-  private ClassLoader driverClassLoader;
-  private Properties driverProperties;
-  private static Map<String, Driver> registeredDrivers = new ConcurrentHashMap<>();
 
-  private String driver;
-  private String url;
-  private String username;
-  private String password;
+	private ClassLoader driverClassLoader;
+	private Properties driverProperties;
+	//已注册的驱动  key：驱动的全路径名  value：驱动
+	private static Map<String, Driver> registeredDrivers = new ConcurrentHashMap<>();
 
-  private Boolean autoCommit;
-  private Integer defaultTransactionIsolationLevel;
+	/**
+	 * 数据库连接最基本的四个配置
+	 */
+	private String driver;
+	private String url;
+	private String username;
+	private String password;
+	//是否自动提交
+	private Boolean autoCommit;
+	//默认食物隔离级别
+	private Integer defaultTransactionIsolationLevel;
 
-  static {
-    Enumeration<Driver> drivers = DriverManager.getDrivers();
-    while (drivers.hasMoreElements()) {
-      Driver driver = drivers.nextElement();
-      registeredDrivers.put(driver.getClass().getName(), driver);
-    }
-  }
+	static {
+		Enumeration<Driver> drivers = DriverManager.getDrivers();
+		while (drivers.hasMoreElements()) {
+			Driver driver = drivers.nextElement();
+			registeredDrivers.put(driver.getClass().getName(), driver);
+		}
+	}
 
-  public UnpooledDataSource() {
-  }
+	public UnpooledDataSource() {
+	}
 
-  public UnpooledDataSource(String driver, String url, String username, String password) {
-    this.driver = driver;
-    this.url = url;
-    this.username = username;
-    this.password = password;
-  }
+	public UnpooledDataSource(String driver, String url, String username, String password) {
+		this.driver = driver;
+		this.url = url;
+		this.username = username;
+		this.password = password;
+	}
 
-  public UnpooledDataSource(String driver, String url, Properties driverProperties) {
-    this.driver = driver;
-    this.url = url;
-    this.driverProperties = driverProperties;
-  }
+	public UnpooledDataSource(String driver, String url, Properties driverProperties) {
+		this.driver = driver;
+		this.url = url;
+		this.driverProperties = driverProperties;
+	}
 
-  public UnpooledDataSource(ClassLoader driverClassLoader, String driver, String url, String username, String password) {
-    this.driverClassLoader = driverClassLoader;
-    this.driver = driver;
-    this.url = url;
-    this.username = username;
-    this.password = password;
-  }
+	public UnpooledDataSource(ClassLoader driverClassLoader, String driver, String url,
+		String username, String password) {
+		this.driverClassLoader = driverClassLoader;
+		this.driver = driver;
+		this.url = url;
+		this.username = username;
+		this.password = password;
+	}
 
-  public UnpooledDataSource(ClassLoader driverClassLoader, String driver, String url, Properties driverProperties) {
-    this.driverClassLoader = driverClassLoader;
-    this.driver = driver;
-    this.url = url;
-    this.driverProperties = driverProperties;
-  }
+	public UnpooledDataSource(ClassLoader driverClassLoader, String driver, String url,
+		Properties driverProperties) {
+		this.driverClassLoader = driverClassLoader;
+		this.driver = driver;
+		this.url = url;
+		this.driverProperties = driverProperties;
+	}
 
-  @Override
-  public Connection getConnection() throws SQLException {
-    return doGetConnection(username, password);
-  }
+	@Override
+	public Connection getConnection() throws SQLException {
+		return doGetConnection(username, password);
+	}
 
-  @Override
-  public Connection getConnection(String username, String password) throws SQLException {
-    return doGetConnection(username, password);
-  }
+	@Override
+	public Connection getConnection(String username, String password) throws SQLException {
+		return doGetConnection(username, password);
+	}
 
-  @Override
-  public void setLoginTimeout(int loginTimeout) throws SQLException {
-    DriverManager.setLoginTimeout(loginTimeout);
-  }
+	@Override
+	public void setLoginTimeout(int loginTimeout) throws SQLException {
+		DriverManager.setLoginTimeout(loginTimeout);
+	}
 
-  @Override
-  public int getLoginTimeout() throws SQLException {
-    return DriverManager.getLoginTimeout();
-  }
+	@Override
+	public int getLoginTimeout() throws SQLException {
+		return DriverManager.getLoginTimeout();
+	}
 
-  @Override
-  public void setLogWriter(PrintWriter logWriter) throws SQLException {
-    DriverManager.setLogWriter(logWriter);
-  }
+	@Override
+	public void setLogWriter(PrintWriter logWriter) throws SQLException {
+		DriverManager.setLogWriter(logWriter);
+	}
 
-  @Override
-  public PrintWriter getLogWriter() throws SQLException {
-    return DriverManager.getLogWriter();
-  }
+	@Override
+	public PrintWriter getLogWriter() throws SQLException {
+		return DriverManager.getLogWriter();
+	}
 
-  public ClassLoader getDriverClassLoader() {
-    return driverClassLoader;
-  }
+	public ClassLoader getDriverClassLoader() {
+		return driverClassLoader;
+	}
 
-  public void setDriverClassLoader(ClassLoader driverClassLoader) {
-    this.driverClassLoader = driverClassLoader;
-  }
+	public void setDriverClassLoader(ClassLoader driverClassLoader) {
+		this.driverClassLoader = driverClassLoader;
+	}
 
-  public Properties getDriverProperties() {
-    return driverProperties;
-  }
+	public Properties getDriverProperties() {
+		return driverProperties;
+	}
 
-  public void setDriverProperties(Properties driverProperties) {
-    this.driverProperties = driverProperties;
-  }
+	public void setDriverProperties(Properties driverProperties) {
+		this.driverProperties = driverProperties;
+	}
 
-  public String getDriver() {
-    return driver;
-  }
+	public String getDriver() {
+		return driver;
+	}
 
-  public synchronized void setDriver(String driver) {
-    this.driver = driver;
-  }
+	public synchronized void setDriver(String driver) {
+		this.driver = driver;
+	}
 
-  public String getUrl() {
-    return url;
-  }
+	public String getUrl() {
+		return url;
+	}
 
-  public void setUrl(String url) {
-    this.url = url;
-  }
+	public void setUrl(String url) {
+		this.url = url;
+	}
 
-  public String getUsername() {
-    return username;
-  }
+	public String getUsername() {
+		return username;
+	}
 
-  public void setUsername(String username) {
-    this.username = username;
-  }
+	public void setUsername(String username) {
+		this.username = username;
+	}
 
-  public String getPassword() {
-    return password;
-  }
+	public String getPassword() {
+		return password;
+	}
 
-  public void setPassword(String password) {
-    this.password = password;
-  }
+	public void setPassword(String password) {
+		this.password = password;
+	}
 
-  public Boolean isAutoCommit() {
-    return autoCommit;
-  }
+	public Boolean isAutoCommit() {
+		return autoCommit;
+	}
 
-  public void setAutoCommit(Boolean autoCommit) {
-    this.autoCommit = autoCommit;
-  }
+	public void setAutoCommit(Boolean autoCommit) {
+		this.autoCommit = autoCommit;
+	}
 
-  public Integer getDefaultTransactionIsolationLevel() {
-    return defaultTransactionIsolationLevel;
-  }
+	public Integer getDefaultTransactionIsolationLevel() {
+		return defaultTransactionIsolationLevel;
+	}
 
-  public void setDefaultTransactionIsolationLevel(Integer defaultTransactionIsolationLevel) {
-    this.defaultTransactionIsolationLevel = defaultTransactionIsolationLevel;
-  }
+	public void setDefaultTransactionIsolationLevel(Integer defaultTransactionIsolationLevel) {
+		this.defaultTransactionIsolationLevel = defaultTransactionIsolationLevel;
+	}
 
-  private Connection doGetConnection(String username, String password) throws SQLException {
-    Properties props = new Properties();
-    if (driverProperties != null) {
-      props.putAll(driverProperties);
-    }
-    if (username != null) {
-      props.setProperty("user", username);
-    }
-    if (password != null) {
-      props.setProperty("password", password);
-    }
-    return doGetConnection(props);
-  }
+	/**
+	 * 获取连接
+	 * @param username 账号
+	 * @param password 密码
+	 * @return
+	 * @throws SQLException
+	 */
+	private Connection doGetConnection(String username, String password) throws SQLException {
+		Properties props = new Properties();
+		if (driverProperties != null) {
+			props.putAll(driverProperties);
+		}
+		if (username != null) {
+			props.setProperty("user", username);
+		}
+		if (password != null) {
+			props.setProperty("password", password);
+		}
+		return doGetConnection(props);
+	}
 
-  private Connection doGetConnection(Properties properties) throws SQLException {
-    initializeDriver();
-    Connection connection = DriverManager.getConnection(url, properties);
-    configureConnection(connection);
-    return connection;
-  }
+	private Connection doGetConnection(Properties properties) throws SQLException {
+		//初始化driver
+		initializeDriver();
+		Connection connection = DriverManager.getConnection(url, properties);
+		configureConnection(connection);
+		return connection;
+	}
 
-  private synchronized void initializeDriver() throws SQLException {
-    if (!registeredDrivers.containsKey(driver)) {
-      Class<?> driverType;
-      try {
-        if (driverClassLoader != null) {
-          driverType = Class.forName(driver, true, driverClassLoader);
-        } else {
-          driverType = Resources.classForName(driver);
-        }
-        // DriverManager requires the driver to be loaded via the system ClassLoader.
-        // http://www.kfu.com/~nsayer/Java/dyn-jdbc.html
-        Driver driverInstance = (Driver)driverType.newInstance();
-        DriverManager.registerDriver(new DriverProxy(driverInstance));
-        registeredDrivers.put(driver, driverInstance);
-      } catch (Exception e) {
-        throw new SQLException("Error setting driver on UnpooledDataSource. Cause: " + e);
-      }
-    }
-  }
+	private synchronized void initializeDriver() throws SQLException {
+		if (!registeredDrivers.containsKey(driver)) {
+			Class<?> driverType;
+			try {
+				if (driverClassLoader != null) {
+					driverType = Class.forName(driver, true, driverClassLoader);
+				} else {
+					driverType = Resources.classForName(driver);
+				}
+				// DriverManager requires the driver to be loaded via the system ClassLoader.
+				// http://www.kfu.com/~nsayer/Java/dyn-jdbc.html
+				Driver driverInstance = (Driver) driverType.newInstance();
+				DriverManager.registerDriver(new DriverProxy(driverInstance));
+				registeredDrivers.put(driver, driverInstance);
+			} catch (Exception e) {
+				throw new SQLException("Error setting driver on UnpooledDataSource. Cause: " + e);
+			}
+		}
+	}
 
-  private void configureConnection(Connection conn) throws SQLException {
-    if (autoCommit != null && autoCommit != conn.getAutoCommit()) {
-      conn.setAutoCommit(autoCommit);
-    }
-    if (defaultTransactionIsolationLevel != null) {
-      conn.setTransactionIsolation(defaultTransactionIsolationLevel);
-    }
-  }
+	private void configureConnection(Connection conn) throws SQLException {
+		if (autoCommit != null && autoCommit != conn.getAutoCommit()) {
+			conn.setAutoCommit(autoCommit);
+		}
+		if (defaultTransactionIsolationLevel != null) {
+			conn.setTransactionIsolation(defaultTransactionIsolationLevel);
+		}
+	}
 
-  private static class DriverProxy implements Driver {
-    private Driver driver;
+	private static class DriverProxy implements Driver {
 
-    DriverProxy(Driver d) {
-      this.driver = d;
-    }
+		private Driver driver;
 
-    @Override
-    public boolean acceptsURL(String u) throws SQLException {
-      return this.driver.acceptsURL(u);
-    }
+		DriverProxy(Driver d) {
+			this.driver = d;
+		}
 
-    @Override
-    public Connection connect(String u, Properties p) throws SQLException {
-      return this.driver.connect(u, p);
-    }
+		@Override
+		public boolean acceptsURL(String u) throws SQLException {
+			return this.driver.acceptsURL(u);
+		}
 
-    @Override
-    public int getMajorVersion() {
-      return this.driver.getMajorVersion();
-    }
+		@Override
+		public Connection connect(String u, Properties p) throws SQLException {
+			return this.driver.connect(u, p);
+		}
 
-    @Override
-    public int getMinorVersion() {
-      return this.driver.getMinorVersion();
-    }
+		@Override
+		public int getMajorVersion() {
+			return this.driver.getMajorVersion();
+		}
 
-    @Override
-    public DriverPropertyInfo[] getPropertyInfo(String u, Properties p) throws SQLException {
-      return this.driver.getPropertyInfo(u, p);
-    }
+		@Override
+		public int getMinorVersion() {
+			return this.driver.getMinorVersion();
+		}
 
-    @Override
-    public boolean jdbcCompliant() {
-      return this.driver.jdbcCompliant();
-    }
+		@Override
+		public DriverPropertyInfo[] getPropertyInfo(String u, Properties p) throws SQLException {
+			return this.driver.getPropertyInfo(u, p);
+		}
 
-    // @Override only valid jdk7+
-    public Logger getParentLogger() {
-      return Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
-    }
-  }
+		@Override
+		public boolean jdbcCompliant() {
+			return this.driver.jdbcCompliant();
+		}
 
-  @Override
-  public <T> T unwrap(Class<T> iface) throws SQLException {
-    throw new SQLException(getClass().getName() + " is not a wrapper.");
-  }
+		// @Override only valid jdk7+
+		public Logger getParentLogger() {
+			return Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+		}
+	}
 
-  @Override
-  public boolean isWrapperFor(Class<?> iface) throws SQLException {
-    return false;
-  }
+	@Override
+	public <T> T unwrap(Class<T> iface) throws SQLException {
+		throw new SQLException(getClass().getName() + " is not a wrapper.");
+	}
 
-  // @Override only valid jdk7+
-  public Logger getParentLogger() {
-    // requires JDK version 1.6
-    return Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
-  }
+	@Override
+	public boolean isWrapperFor(Class<?> iface) throws SQLException {
+		return false;
+	}
+
+	// @Override only valid jdk7+
+	public Logger getParentLogger() {
+		// requires JDK version 1.6
+		return Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+	}
 
 }
