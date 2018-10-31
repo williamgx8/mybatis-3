@@ -27,29 +27,44 @@ import java.util.Arrays;
 
 /**
  * 类型Type参数Parameter解析器
+ * 入口函数有三种：
+ * 1. resolveFieldType(Field, Type)解析Type类中实际的Field类型
+ * 2. resolveReturnType(Method, Type)解析Type类中实际Method返回值类型
+ * 3. resolveParamTypes(Method, Type)解析Type类中Method参数真实类型
+ * 无论对于Field、Param还是Return从Type的分类上又可分为四种：
+ * 1. ParameterizedType 带泛型参数的类型  比如List<String>、Map<K,V>
+ * 2. Class  普通类型   int、Double、POJO
+ * 3. TypeVariable  类型变量  比如 T、K等单纯的泛型
+ * 4. GenericArrayType  泛型数组   比如  T[]等
+ * 从入口函数进入，根据type的不同又分为四种类型单独处理`
  *
  * @author Iwao AVE!
  */
 public class TypeParameterResolver {
 
 	/**
+	 * 解析field在srcType类中的实际类型
+	 *
 	 * @return The field type as {@link Type}. If it has type parameters in the declaration,<br>
 	 * they will be resolved to the actual runtime {@link Type}s.
 	 */
 	public static Type resolveFieldType(Field field, Type srcType) {
 		//获得Field的Type类型
 		Type fieldType = field.getGenericType();
-		//Field对应的Class
+		//Field声明所在的class，一般是srcType本身或者父类/接口
 		Class<?> declaringClass = field.getDeclaringClass();
 		return resolveType(fieldType, srcType, declaringClass);
 	}
 
 	/**
+	 * 解析在srcType中方法method真正的返回类型
 	 * @return The return type of the method as {@link Type}. If it has type parameters in the declaration,<br>
 	 * they will be resolved to the actual runtime {@link Type}s.
 	 */
 	public static Type resolveReturnType(Method method, Type srcType) {
+		// 获取method带泛型的返回值类型
 		Type returnType = method.getGenericReturnType();
+		// method声明的class，最近原则
 		Class<?> declaringClass = method.getDeclaringClass();
 		return resolveType(returnType, srcType, declaringClass);
 	}
@@ -80,7 +95,7 @@ public class TypeParameterResolver {
 		if (type instanceof TypeVariable) {
 			return resolveTypeVar((TypeVariable<?>) type, srcType, declaringClass);
 		} else if (type instanceof ParameterizedType) {
-			//参数中带泛型，比如List<String>
+			//参数中带泛型，比如List<T>
 			return resolveParameterizedType((ParameterizedType) type, srcType, declaringClass);
 		} else if (type instanceof GenericArrayType) {
 			//泛型数组
@@ -111,11 +126,21 @@ public class TypeParameterResolver {
 		}
 	}
 
+	/**
+	 * 解析参数类型在当前类srcType和声明类declaringClass情况下的真实类型
+	 * @param parameterizedType
+	 * @param srcType
+	 * @param declaringClass
+	 * @return
+	 */
 	private static ParameterizedType resolveParameterizedType(ParameterizedType parameterizedType,
 		Type srcType, Class<?> declaringClass) {
+		//除去泛型的原始类型
 		Class<?> rawType = (Class<?>) parameterizedType.getRawType();
+		//泛型<>中所有的类型
 		Type[] typeArgs = parameterizedType.getActualTypeArguments();
 		Type[] args = new Type[typeArgs.length];
+		//每一个泛型类型根据type的不同进一步处理
 		for (int i = 0; i < typeArgs.length; i++) {
 			if (typeArgs[i] instanceof TypeVariable) {
 				args[i] = resolveTypeVar((TypeVariable<?>) typeArgs[i], srcType, declaringClass);
@@ -128,6 +153,7 @@ public class TypeParameterResolver {
 				args[i] = typeArgs[i];
 			}
 		}
+		//将解析完成的结果封装返回
 		return new ParameterizedTypeImpl(rawType, null, args);
 	}
 
@@ -159,12 +185,13 @@ public class TypeParameterResolver {
 	}
 
 	/**
-	 * 解析类（实现类）中方法真实的返回类型，可能出现父类定义了泛型的方法签名，而子类指定了泛型的类型，方法的返回值和
-	 * 泛型的具体类型有关
+	 * 解析类中typeVar真实类型，可能出现父类声明了typeVar的泛型类型，而子类指定了具体类型，
+	 * 通过typeVar定义的类型、typeVar真实类型所在的类的类型srcType，已经定义了typeVar所在类的类型找到typeVar
+	 * 在srcType中的真实类型
 	 *
-	 * @param typeVar 参数类型
-	 * @param srcType 实现类类型
-	 * @param declaringClass 方法定义所在类类型
+	 * @param typeVar 需要解析真实类型的类型
+	 * @param srcType 当前类的类型
+	 * @param declaringClass 定义待解析typeVar所在类的类型
 	 */
 	private static Type resolveTypeVar(TypeVariable<?> typeVar, Type srcType,
 		Class<?> declaringClass) {
@@ -189,13 +216,13 @@ public class TypeParameterResolver {
 			}
 			return Object.class;
 		}
-		//存在继承
+		//存在继承,获得带参数的父类类型
 		Type superclass = clazz.getGenericSuperclass();
 		result = scanSuperTypes(typeVar, srcType, declaringClass, clazz, superclass);
 		if (result != null) {
 			return result;
 		}
-		//存在接口实现
+		//存在接口实现,获得带参数的父接口
 		Type[] superInterfaces = clazz.getGenericInterfaces();
 		for (Type superInterface : superInterfaces) {
 			result = scanSuperTypes(typeVar, srcType, declaringClass, clazz, superInterface);
@@ -206,23 +233,38 @@ public class TypeParameterResolver {
 		return Object.class;
 	}
 
+	/**
+	 * 获取在srcType中typeVar参数的实际类型
+	 *
+	 * @param typeVar 需要获得参数的类型
+	 * @param srcType 类的真实类型，被解析的字段/方法等真正所处的类
+	 * @param declaringClass 参数/方法在定义类中的类型
+	 * @param superclass 真实类srcType的带参数父类
+	 */
 	private static Type scanSuperTypes(TypeVariable<?> typeVar, Type srcType,
 		Class<?> declaringClass, Class<?> clazz, Type superclass) {
 		if (superclass instanceof ParameterizedType) {
+			//父类为参数化类型，比如 Map<K,V>
 			ParameterizedType parentAsType = (ParameterizedType) superclass;
+			//原始类型，比如Map
 			Class<?> parentAsClass = (Class<?>) parentAsType.getRawType();
+			//父类上定义的泛型类型变量，比如 [K,V]
 			TypeVariable<?>[] parentTypeVars = parentAsClass.getTypeParameters();
 			if (srcType instanceof ParameterizedType) {
 				parentAsType = translateParentTypeVars((ParameterizedType) srcType, clazz,
 					parentAsType);
 			}
+			//确定方法/参数声明类和当前扫描到的父类相同，先看能否从父类得到typeVar的实际类型
 			if (declaringClass == parentAsClass) {
 				for (int i = 0; i < parentTypeVars.length; i++) {
+					//父类中定义的泛型类型和要求解析的参数类型typeVar相同
 					if (typeVar == parentTypeVars[i]) {
+						//对应index的真实类型就是typeVar的真实类型
 						return parentAsType.getActualTypeArguments()[i];
 					}
 				}
 			}
+			//当前父类parentAsClass还是声明类declaringClass的子类，说明还没有找到最顶层的父类，递归查找
 			if (declaringClass.isAssignableFrom(parentAsClass)) {
 				return resolveTypeVar(typeVar, parentAsType, declaringClass);
 			}
@@ -261,11 +303,11 @@ public class TypeParameterResolver {
 	}
 
 	static class ParameterizedTypeImpl implements ParameterizedType {
-
+		//除去泛型的原始类型
 		private Class<?> rawType;
 
 		private Type ownerType;
-
+		//泛型对应的真实类型
 		private Type[] actualTypeArguments;
 
 		public ParameterizedTypeImpl(Class<?> rawType, Type ownerType, Type[] actualTypeArguments) {

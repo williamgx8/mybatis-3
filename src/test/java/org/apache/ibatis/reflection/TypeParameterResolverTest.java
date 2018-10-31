@@ -74,6 +74,10 @@ public class TypeParameterResolverTest {
 	@Test
 	public void testReturn_SimpleList() throws Exception {
 		Class<?> clazz = Level1Mapper.class;
+		/**
+		 * 虽然是通过Level1Mapper获取simpleSelectList而不是通过父类Level0Mapper获取，
+		 * 但是Level1Mapper并没有重写该方法，所以这个方法实际上还是属于Level0Mapper的
+		 */
 		Method method = clazz.getMethod("simpleSelectList");
 		Type result = TypeParameterResolver.resolveReturnType(method, clazz);
 		assertTrue(result instanceof ParameterizedType);
