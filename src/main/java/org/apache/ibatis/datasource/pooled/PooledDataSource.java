@@ -106,12 +106,21 @@ public class PooledDataSource implements DataSource {
 			dataSource.getUsername(), dataSource.getPassword());
 	}
 
+	/**
+	 * 两个获取连接的方法实际上得到的都是PooledConnection的代理
+	 */
 	@Override
 	public Connection getConnection() throws SQLException {
 		return popConnection(dataSource.getUsername(), dataSource.getPassword())
 			.getProxyConnection();
 	}
 
+	/**
+	 * 两个获取连接的方法实际上得到的都是PooledConnection的代理
+	 *
+	 * @param username 用户名
+	 * @param password 密码
+	 */
 	@Override
 	public Connection getConnection(String username, String password) throws SQLException {
 		return popConnection(username, password).getProxyConnection();
@@ -316,13 +325,14 @@ public class PooledDataSource implements DataSource {
 		return poolPingConnectionsNotUsedFor;
 	}
 
-	/*
-	 * Closes all active and idle connections in the pool
+	/**
+	 * 关闭连接池中所有活跃和空闲连接
 	 */
 	public void forceCloseAll() {
 		synchronized (state) {
 			expectedConnectionTypeCode = assembleConnectionTypeCode(dataSource.getUrl(),
 				dataSource.getUsername(), dataSource.getPassword());
+			//遍历所有活跃连接，依次关闭
 			for (int i = state.activeConnections.size(); i > 0; i--) {
 				try {
 					PooledConnection conn = state.activeConnections.remove(i - 1);
@@ -337,6 +347,7 @@ public class PooledDataSource implements DataSource {
 					// ignore
 				}
 			}
+			//遍历所有空闲连接，依次关闭
 			for (int i = state.idleConnections.size(); i > 0; i--) {
 				try {
 					PooledConnection conn = state.idleConnections.remove(i - 1);
@@ -367,8 +378,6 @@ public class PooledDataSource implements DataSource {
 
 	/**
 	 * 回收/丢弃连接
-	 * @param conn
-	 * @throws SQLException
 	 */
 	protected void pushConnection(PooledConnection conn) throws SQLException {
 
@@ -421,6 +430,9 @@ public class PooledDataSource implements DataSource {
 		}
 	}
 
+	/**
+	 * 获取创建连接
+	 */
 	private PooledConnection popConnection(String username, String password) throws SQLException {
 		boolean countedWait = false;
 		PooledConnection conn = null;
@@ -565,6 +577,7 @@ public class PooledDataSource implements DataSource {
 
 	/**
 	 * Method to check to see if a connection is still usable
+	 * ping检测连接
 	 *
 	 * @param conn - the connection to check
 	 * @return True if the connection is still usable
@@ -573,6 +586,7 @@ public class PooledDataSource implements DataSource {
 		boolean result = true;
 
 		try {
+			//连接是否已经关闭
 			result = !conn.getRealConnection().isClosed();
 		} catch (SQLException e) {
 			if (log.isDebugEnabled()) {
@@ -581,14 +595,18 @@ public class PooledDataSource implements DataSource {
 			result = false;
 		}
 
+		//没有关闭
 		if (result) {
+			//开启了连接池ping检测
 			if (poolPingEnabled) {
+				//ping连接发送间隔大于零且最后一次ping距离现在大于发送间隔时间
 				if (poolPingConnectionsNotUsedFor >= 0
 					&& conn.getTimeElapsedSinceLastUse() > poolPingConnectionsNotUsedFor) {
 					try {
 						if (log.isDebugEnabled()) {
 							log.debug("Testing connection " + conn.getRealHashCode() + " ...");
 						}
+						//获得连接，执行ping语句
 						Connection realConn = conn.getRealConnection();
 						try (Statement statement = realConn.createStatement()) {
 							statement.executeQuery(poolPingQuery).close();
@@ -601,13 +619,16 @@ public class PooledDataSource implements DataSource {
 							log.debug("Connection " + conn.getRealHashCode() + " is GOOD!");
 						}
 					} catch (Exception e) {
+						//出现异常说明执行ping语句错误
 						log.warn("Execution of ping query '" + poolPingQuery + "' failed: " + e
 							.getMessage());
 						try {
+							//关闭连接
 							conn.getRealConnection().close();
 						} catch (Exception e2) {
 							//ignore
 						}
+						//设置标志位
 						result = false;
 						if (log.isDebugEnabled()) {
 							log.debug("Connection " + conn.getRealHashCode() + " is BAD: " + e
