@@ -24,7 +24,7 @@ import org.apache.ibatis.session.TransactionIsolationLevel;
 
 /**
  * Creates {@link Transaction} instances.
- *
+ * 事务工厂，工厂生产事务，事务管理连接执行，结构还是很清晰的
  * @author Clinton Begin
  */
 public interface TransactionFactory {
