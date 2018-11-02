@@ -91,7 +91,14 @@ public class WeakCache implements Cache {
 				 * 相当于又加了一个强引用指向result，此时就有两种引用的指向
 				 * 1. WeakReference的弱引用指向
 				 * 2. hardLinksToAvoidGarbageCollection的强引用指向
-				 * 此时就会丧失弱引用自动GC的作用，不清楚为什么这么做
+				 * 此时就会丧失弱引用自动GC的作用
+				 *
+				 * 从Gc的可达性算法的角度来说，越多引用被第三方有效持有，
+				 * 意味着该缓存越重要，越不能被回收（因为要回收的话需要把所有的引用都断了），
+				 * 且从未来的趋势来看，在多个缓存中该缓存被再次获取的概率也越大（毕竟这么多人请求过了），
+				 * 如果不管缓存的重要性都只放一次的话，是不是只要有一个gc了，这个缓存就回收了，
+				 * 那对于很多要再次获取该缓存的线程来说又要查一下db，
+				 * 可以认为hardLinksToAvoidGarbageCollection中某个缓存的数量对应着缓存的权重
 				 */
 				hardLinksToAvoidGarbageCollection.addFirst(result);
 				if (hardLinksToAvoidGarbageCollection.size() > numberOfHardLinks) {
