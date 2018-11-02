@@ -24,6 +24,7 @@ import org.apache.ibatis.cache.CacheException;
 
 /**
  * 永不过期cache，底层基于Map实现，实现都是单纯的对于map的增删改查
+ *
  * @author Clinton Begin
  */
 public class PerpetualCache implements Cache {
@@ -71,6 +72,10 @@ public class PerpetualCache implements Cache {
 		return null;
 	}
 
+	/**
+	 * equals和hashCode方法重写之后只根据cache的id标识是否相同判断缓存是否相等，
+	 * 这么做的目的是方便二级缓存TransactionalManager中缓存map key的存储
+	 */
 	@Override
 	public boolean equals(Object o) {
 		if (getId() == null) {
