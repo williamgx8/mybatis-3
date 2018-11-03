@@ -21,44 +21,46 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
+ * 类型处理器的抽象，泛型为JavaType
+ *
  * @author Clinton Begin
  */
 public interface TypeHandler<T> {
 
-	/**
-	 * 设置PreparedStatement的指定参数
-	 * Java Type --->  JDBC Type
-	 *
-	 * @param ps PreparedStatement对象
-	 * @param i 参数占位符的位置
-	 * @param parameter 参数
-	 * @param jdbcType JDBC类型
-	 */
-	void setParameter(PreparedStatement ps, int i, T parameter, JdbcType jdbcType)
-		throws SQLException;
+    /**
+     * 设置PreparedStatement的指定参数
+     * Java Type --->  JDBC Type
+     *
+     * @param ps        PreparedStatement对象
+     * @param i         参数占位符的位置
+     * @param parameter 参数
+     * @param jdbcType  JDBC类型
+     */
+    void setParameter(PreparedStatement ps, int i, T parameter, JdbcType jdbcType)
+            throws SQLException;
 
-	/**
-	 * 获取ResultSet中指定字段的值
-	 * JDBC Type --->  Java Type
-	 *
-	 * @param rs 结果集
-	 * @param columnName 要获取的字段名
-	 */
-	T getResult(ResultSet rs, String columnName) throws SQLException;
+    /**
+     * 获取ResultSet中指定字段的值
+     * JDBC Type --->  Java Type
+     *
+     * @param rs         结果集
+     * @param columnName 要获取的字段名
+     */
+    T getResult(ResultSet rs, String columnName) throws SQLException;
 
-	/**
-	 * 获取ResultSet中指定index字段的值
-	 * JDBC Type --->  Java Type
-	 *
-	 * @param rs 结果集
-	 * @param columnIndex 列下标
-	 */
-	T getResult(ResultSet rs, int columnIndex) throws SQLException;
+    /**
+     * 获取ResultSet中指定index字段的值
+     * JDBC Type --->  Java Type
+     *
+     * @param rs          结果集
+     * @param columnIndex 列下标
+     */
+    T getResult(ResultSet rs, int columnIndex) throws SQLException;
 
-	/**
-	 * 获取存储过程结果集中指定index字段的值
-	 * JDBC Type --->  Java Type
-	 */
-	T getResult(CallableStatement cs, int columnIndex) throws SQLException;
+    /**
+     * 获取存储过程结果集中指定index字段的值
+     * JDBC Type --->  Java Type
+     */
+    T getResult(CallableStatement cs, int columnIndex) throws SQLException;
 
 }
