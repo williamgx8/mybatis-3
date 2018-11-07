@@ -16,6 +16,7 @@
 package org.apache.ibatis.binding;
 
 import static com.googlecode.catchexception.apis.BDDCatchException.*;
+import static org.assertj.core.api.Assertions.in;
 import static org.assertj.core.api.BDDAssertions.then;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

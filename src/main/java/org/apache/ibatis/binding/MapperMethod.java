@@ -57,7 +57,9 @@ public class MapperMethod {
 		Object result;
 		switch (command.getType()) {
 			case INSERT: {
+				//将参数名和参数值对应
 				Object param = method.convertArgsToSqlCommandParam(args);
+				//执行insert操作，返回影响的行数
 				result = rowCountResult(sqlSession.insert(command.getName(), param));
 				break;
 			}
@@ -72,18 +74,24 @@ public class MapperMethod {
 				break;
 			}
 			case SELECT:
+				//方法返回null，并且方法参数中存在ResultHandler
 				if (method.returnsVoid() && method.hasResultHandler()) {
 					executeWithResultHandler(sqlSession, args);
 					result = null;
+					//返回集合或数组
 				} else if (method.returnsMany()) {
 					result = executeForMany(sqlSession, args);
+					//返回Map
 				} else if (method.returnsMap()) {
 					result = executeForMap(sqlSession, args);
+					//返回游标
 				} else if (method.returnsCursor()) {
 					result = executeForCursor(sqlSession, args);
 				} else {
 					Object param = method.convertArgsToSqlCommandParam(args);
+					//执行单个查询
 					result = sqlSession.selectOne(command.getName(), param);
+					//
 					if (method.returnsOptional() &&
 						(result == null || !method.getReturnType().equals(result.getClass()))) {
 						result = Optional.ofNullable(result);
@@ -104,6 +112,11 @@ public class MapperMethod {
 		return result;
 	}
 
+	/**
+	 * 根据解析的method的ReturnType和执行SQL后的返回的影响的行数，进行转换
+	 *
+	 * @param rowCount SQL执行影响的行数
+	 */
 	private Object rowCountResult(int rowCount) {
 		final Object result;
 		if (method.returnsVoid()) {
@@ -226,15 +239,21 @@ public class MapperMethod {
 
 	public static class SqlCommand {
 
+		//可以理解为唯一标识
 		private final String name;
+		//SELECT UPDATE这些，sql的类型
 		private final SqlCommandType type;
 
 		public SqlCommand(Configuration configuration, Class<?> mapperInterface, Method method) {
+			//Mapper中方法名
 			final String methodName = method.getName();
+			//Mapper
 			final Class<?> declaringClass = method.getDeclaringClass();
+			//Mapper和调用方法解析成MappedStatement
 			MappedStatement ms = resolveMappedStatement(mapperInterface, methodName, declaringClass,
 				configuration);
 			if (ms == null) {
+				//存在@Flush注解
 				if (method.getAnnotation(Flush.class) != null) {
 					name = null;
 					type = SqlCommandType.FLUSH;
@@ -243,6 +262,7 @@ public class MapperMethod {
 						+ mapperInterface.getName() + "." + methodName);
 				}
 			} else {
+				//解析MappedStatement成功，设置值
 				name = ms.getId();
 				type = ms.getSqlCommandType();
 				if (type == SqlCommandType.UNKNOWN) {
@@ -259,16 +279,29 @@ public class MapperMethod {
 			return type;
 		}
 
+		/**
+		 * 将Mapper中对应方法解析成MappedStatement
+		 *
+		 * @param mapperInterface Mapper类型
+		 * @param methodName 方法
+		 * @param declaringClass 声明方法的类
+		 */
 		private MappedStatement resolveMappedStatement(Class<?> mapperInterface, String methodName,
 			Class<?> declaringClass, Configuration configuration) {
+			//生成唯一标识
 			String statementId = mapperInterface.getName() + "." + methodName;
+			//已存在，直接从mappedStatements中拿出返回
 			if (configuration.hasStatement(statementId)) {
 				return configuration.getMappedStatement(statementId);
+				//已经找到顶了，那肯定就没有了
 			} else if (mapperInterface.equals(declaringClass)) {
 				return null;
 			}
+			//遍历父接口
 			for (Class<?> superInterface : mapperInterface.getInterfaces()) {
+				//declaringClass是superInterface的子类
 				if (declaringClass.isAssignableFrom(superInterface)) {
+					//递归往上找
 					MappedStatement ms = resolveMappedStatement(superInterface, methodName,
 						declaringClass, configuration);
 					if (ms != null) {
@@ -295,25 +328,37 @@ public class MapperMethod {
 
 		public MethodSignature(Configuration configuration, Class<?> mapperInterface,
 			Method method) {
+			//解析method在mapperInterface中的真实返回值
 			Type resolvedReturnType = TypeParameterResolver
 				.resolveReturnType(method, mapperInterface);
+			//普通类
 			if (resolvedReturnType instanceof Class<?>) {
 				this.returnType = (Class<?>) resolvedReturnType;
+				//带泛型，获得原始类型
 			} else if (resolvedReturnType instanceof ParameterizedType) {
 				this.returnType = (Class<?>) ((ParameterizedType) resolvedReturnType).getRawType();
 			} else {
 				this.returnType = method.getReturnType();
 			}
+			//是否返回null
 			this.returnsVoid = void.class.equals(this.returnType);
+			//是否返回集合或者数组
 			this.returnsMany =
 				configuration.getObjectFactory().isCollection(this.returnType) || this.returnType
 					.isArray();
+			//游标类
 			this.returnsCursor = Cursor.class.equals(this.returnType);
+			//Optional
 			this.returnsOptional = Optional.class.equals(this.returnType);
+			//@MapKey上配置的值
 			this.mapKey = getMapKey(method);
+			//是否返回Map
 			this.returnsMap = this.mapKey != null;
+			//获取方法参数中RowBounds类型参数的位置
 			this.rowBoundsIndex = getUniqueParamIndex(method, RowBounds.class);
+			//获取方法参数中ResultHandler类型参数的位置
 			this.resultHandlerIndex = getUniqueParamIndex(method, ResultHandler.class);
+			//参数解析器
 			this.paramNameResolver = new ParamNameResolver(configuration, method);
 		}
 
@@ -371,14 +416,21 @@ public class MapperMethod {
 			return returnsOptional;
 		}
 
+		/**
+		 * 查询method参数中类型为paramType的那个唯一的index
+		 */
 		private Integer getUniqueParamIndex(Method method, Class<?> paramType) {
 			Integer index = null;
+			//方法参数
 			final Class<?>[] argTypes = method.getParameterTypes();
 			for (int i = 0; i < argTypes.length; i++) {
+				//一个个遍历，查找到给定Class的子类
 				if (paramType.isAssignableFrom(argTypes[i])) {
+					//没有过该类型记录
 					if (index == null) {
 						index = i;
 					} else {
+						//有过，不允许
 						throw new BindingException(
 							method.getName() + " cannot have multiple " + paramType.getSimpleName()
 								+ " parameters");
@@ -388,8 +440,12 @@ public class MapperMethod {
 			return index;
 		}
 
+		/**
+		 * 解析方法上@MapKey的值
+		 */
 		private String getMapKey(Method method) {
 			String mapKey = null;
+			//因为@MapKey的返回值必须是一个Map类型，所以先进行判断
 			if (Map.class.isAssignableFrom(method.getReturnType())) {
 				final MapKey mapKeyAnnotation = method.getAnnotation(MapKey.class);
 				if (mapKeyAnnotation != null) {
