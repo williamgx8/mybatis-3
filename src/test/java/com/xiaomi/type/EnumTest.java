@@ -23,4 +23,11 @@ public class EnumTest {
         }
 
     }
+
+
+    @Test
+    public void enumNameTest() {
+        MyEnum one = MyEnum.valueOf("ONE");
+        System.out.println(one);
+    }
 }
