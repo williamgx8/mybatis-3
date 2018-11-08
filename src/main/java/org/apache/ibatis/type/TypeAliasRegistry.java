@@ -33,6 +33,8 @@ import org.apache.ibatis.io.ResolverUtil;
 import org.apache.ibatis.io.Resources;
 
 /**
+ * 所有类型的别名存储，不管是Class的，还是类处理器TypeHandler的
+ *
  * @author Clinton Begin
  */
 public class TypeAliasRegistry {

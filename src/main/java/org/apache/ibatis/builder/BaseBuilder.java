@@ -34,7 +34,9 @@ import org.apache.ibatis.type.TypeHandlerRegistry;
 public abstract class BaseBuilder {
 
 	protected final Configuration configuration;
+	//处理别名和真实类型的映射
 	protected final TypeAliasRegistry typeAliasRegistry;
+	//处理JavaType、JdbcType、TypeHandler三者的映射
 	protected final TypeHandlerRegistry typeHandlerRegistry;
 
 	public BaseBuilder(Configuration configuration) {
@@ -114,12 +116,20 @@ public abstract class BaseBuilder {
 		}
 	}
 
+	/**
+	 * 根据类的别名创建类的实例
+	 * @param alias 类的别名
+	 * @return
+	 */
 	protected Object createInstance(String alias) {
+		//解析别名
 		Class<?> clazz = resolveClass(alias);
+		//解析不到返回null
 		if (clazz == null) {
 			return null;
 		}
 		try {
+			//解析成功创建实例
 			return resolveClass(alias).newInstance();
 		} catch (Exception e) {
 			throw new BuilderException("Error creating instance. Cause: " + e, e);
@@ -137,11 +147,19 @@ public abstract class BaseBuilder {
 		}
 	}
 
+	/**
+	 * 根据java类型和类型处理器TypeHandler昵称得到对应的TypeHandler
+	 * @param javaType Java类型
+	 * @param typeHandlerAlias TypeHandler别名
+	 * @return
+	 */
 	protected TypeHandler<?> resolveTypeHandler(Class<?> javaType, String typeHandlerAlias) {
 		if (typeHandlerAlias == null) {
 			return null;
 		}
+		//解析别名得到对应的TypeHandler类型
 		Class<?> type = resolveClass(typeHandlerAlias);
+		//验证解析出来的是TypeHandler的子类
 		if (type != null && !TypeHandler.class.isAssignableFrom(type)) {
 			throw new BuilderException("Type " + type.getName()
 				+ " is not a valid TypeHandler because it does not implement TypeHandler interface");
@@ -151,13 +169,21 @@ public abstract class BaseBuilder {
 		return resolveTypeHandler(javaType, typeHandlerType);
 	}
 
+	/**
+	 * 根据TypeHandler类型和JavaType得到对应TypeHandler实例
+	 * @param javaType java类型
+	 * @param typeHandlerType TypeHandler类型
+	 * @return
+	 */
 	protected TypeHandler<?> resolveTypeHandler(Class<?> javaType,
 		Class<? extends TypeHandler<?>> typeHandlerType) {
 		if (typeHandlerType == null) {
 			return null;
 		}
 		// javaType ignored for injected handlers see issue #746 for full detail
+		//获得对应实例
 		TypeHandler<?> handler = typeHandlerRegistry.getMappingTypeHandler(typeHandlerType);
+		//之前没在
 		if (handler == null) {
 			// not in registry, create a new one
 			handler = typeHandlerRegistry.getInstance(javaType, typeHandlerType);

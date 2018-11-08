@@ -31,6 +31,7 @@ import org.apache.ibatis.reflection.property.PropertyTokenizer;
  */
 public class MetaClass {
 
+    //Reflector工厂父接口，不同的工厂实现产生不同的Reflector
     private final ReflectorFactory reflectorFactory;
     private final Reflector reflector;
 
@@ -42,8 +43,8 @@ public class MetaClass {
     /**
      * 创建指定类的元数据对象
      *
-     * @param type
-     * @param reflectorFactory
+     * @param type Class
+     * @param reflectorFactory 反射器工厂
      * @return
      */
     public static MetaClass forClass(Class<?> type, ReflectorFactory reflectorFactory) {
