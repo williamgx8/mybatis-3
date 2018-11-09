@@ -103,9 +103,9 @@ public class TypeAliasRegistry {
 	}
 
 	/**
-	 * 根据昵称获取对应的Class
+	 * 根据名称获取对应的Class，如果是昵称，返回昵称对应的Class，否则名称就是Class全路径名，直接转
 	 *
-	 * @param string 别名
+	 * @param string 别名/Class全路径
 	 * @return 对应的Class
 	 */
 	@SuppressWarnings("unchecked")

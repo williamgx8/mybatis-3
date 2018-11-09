@@ -19,19 +19,22 @@ import java.util.Properties;
 import javax.sql.DataSource;
 
 /**
+ * 数据源工厂，分为三种类型
+ * UnpooledDataSourceFactory--->无连接池数据源工厂
+ * PooledDataSourceFactory-->连接池数据源工厂
+ * JndiDataSourceFactory
+ *
  * @author Clinton Begin
  */
 public interface DataSourceFactory {
 
 	/**
 	 * 为DataSource设置属性
-	 * @param props
 	 */
 	void setProperties(Properties props);
 
 	/**
 	 * 获得具体的DataSource对象
-	 * @return
 	 */
 	DataSource getDataSource();
 
