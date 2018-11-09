@@ -52,9 +52,13 @@ import org.apache.ibatis.type.TypeHandler;
  */
 public class XMLMapperBuilder extends BaseBuilder {
 
+	//xpath解析器
 	private final XPathParser parser;
+	//解析Mapper的辅助类
 	private final MapperBuilderAssistant builderAssistant;
+	//可重用<sql/>代码块  比如<sql id="userColumns"> ${alias}.id,${alias}.username,${alias}.password </sql>
 	private final Map<String, XNode> sqlFragments;
+	//资源地址
 	private final String resource;
 
 	@Deprecated
