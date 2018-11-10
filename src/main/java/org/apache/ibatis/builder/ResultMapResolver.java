@@ -22,29 +22,40 @@ import org.apache.ibatis.mapping.ResultMap;
 import org.apache.ibatis.mapping.ResultMapping;
 
 /**
+ * <resultMap/>解析器对象
  * @author Eduardo Macarron
  */
 public class ResultMapResolver {
-  private final MapperBuilderAssistant assistant;
-  private final String id;
-  private final Class<?> type;
-  private final String extend;
-  private final Discriminator discriminator;
-  private final List<ResultMapping> resultMappings;
-  private final Boolean autoMapping;
+    //解析辅助对象
+    private final MapperBuilderAssistant assistant;
+    //resultMap唯一标识
+    private final String id;
+    //resultMap映射类型
+    private final Class<?> type;
+    //继承的resultMap
+    private final String extend;
+    private final Discriminator discriminator;
+    //真正的一坨内容存放处
+    private final List<ResultMapping> resultMappings;
+    //是否自动映射
+    private final Boolean autoMapping;
 
-  public ResultMapResolver(MapperBuilderAssistant assistant, String id, Class<?> type, String extend, Discriminator discriminator, List<ResultMapping> resultMappings, Boolean autoMapping) {
-    this.assistant = assistant;
-    this.id = id;
-    this.type = type;
-    this.extend = extend;
-    this.discriminator = discriminator;
-    this.resultMappings = resultMappings;
-    this.autoMapping = autoMapping;
-  }
+    public ResultMapResolver(MapperBuilderAssistant assistant, String id, Class<?> type, String extend, Discriminator discriminator, List<ResultMapping> resultMappings, Boolean autoMapping) {
+        this.assistant = assistant;
+        this.id = id;
+        this.type = type;
+        this.extend = extend;
+        this.discriminator = discriminator;
+        this.resultMappings = resultMappings;
+        this.autoMapping = autoMapping;
+    }
 
-  public ResultMap resolve() {
-    return assistant.addResultMap(this.id, this.type, this.extend, this.discriminator, this.resultMappings, this.autoMapping);
-  }
+    /**
+     * 委托给MapperBuilderAssistant解析
+     * @return
+     */
+    public ResultMap resolve() {
+        return assistant.addResultMap(this.id, this.type, this.extend, this.discriminator, this.resultMappings, this.autoMapping);
+    }
 
 }
