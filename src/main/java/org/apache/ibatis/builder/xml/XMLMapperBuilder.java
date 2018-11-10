@@ -106,12 +106,17 @@ public class XMLMapperBuilder extends BaseBuilder {
         if (!configuration.isResourceLoaded(resource)) {
             //解析Mapper
             configurationElement(parser.evalNode("/mapper"));
+            //标记该resource已被处理
             configuration.addLoadedResource(resource);
+            //
             bindMapperForNamespace();
         }
 
+        //解析异常/未完成的<resultMap/>
         parsePendingResultMaps();
+        //解析异常/未完成<cacheRef/>
         parsePendingCacheRefs();
+        //解析异常/未完成语句标签
         parsePendingStatements();
     }
 
@@ -164,6 +169,7 @@ public class XMLMapperBuilder extends BaseBuilder {
             resultMapElements(context.evalNodes("/mapper/resultMap"));
             //解析<sql/>片段
             sqlElement(context.evalNodes("/mapper/sql"));
+            //解析Mapper接口中方法对应的SQL语句块
             buildStatementFromContext(context.evalNodes("select|insert|update|delete"));
         } catch (Exception e) {
             throw new BuilderException(
@@ -172,32 +178,47 @@ public class XMLMapperBuilder extends BaseBuilder {
     }
 
     private void buildStatementFromContext(List<XNode> list) {
+        //如果制定了数据库，要根据相应数据库分析方言
         if (configuration.getDatabaseId() != null) {
             buildStatementFromContext(list, configuration.getDatabaseId());
         }
         buildStatementFromContext(list, null);
     }
 
+    /**
+     * 解析<select/>等语句标签
+     * @param list 语句标签集合
+     * @param requiredDatabaseId 数据库类型id
+     */
     private void buildStatementFromContext(List<XNode> list, String requiredDatabaseId) {
         for (XNode context : list) {
+            //创建解析语句标签的对象
             final XMLStatementBuilder statementParser = new XMLStatementBuilder(configuration,
                     builderAssistant, context, requiredDatabaseId);
             try {
+                //解析
                 statementParser.parseStatementNode();
             } catch (IncompleteElementException e) {
+                //解析失败放入未解析完成列表
                 configuration.addIncompleteStatement(statementParser);
             }
         }
     }
 
+    /**
+     * 解析异常/未完成的<resultMap/>
+     */
     private void parsePendingResultMaps() {
+        //得到有问题的<resultMap/>解析器
         Collection<ResultMapResolver> incompleteResultMaps = configuration
                 .getIncompleteResultMaps();
         synchronized (incompleteResultMaps) {
             Iterator<ResultMapResolver> iter = incompleteResultMaps.iterator();
             while (iter.hasNext()) {
                 try {
+                    //尝试解析
                     iter.next().resolve();
+                    //解析成功从异常列表中移除
                     iter.remove();
                 } catch (IncompleteElementException e) {
                     // ResultMap is still missing a resource...
@@ -206,6 +227,9 @@ public class XMLMapperBuilder extends BaseBuilder {
         }
     }
 
+    /**
+     * 解析异常/未完成的<cacheRef/>
+     */
     private void parsePendingCacheRefs() {
         Collection<CacheRefResolver> incompleteCacheRefs = configuration.getIncompleteCacheRefs();
         synchronized (incompleteCacheRefs) {
@@ -221,6 +245,9 @@ public class XMLMapperBuilder extends BaseBuilder {
         }
     }
 
+    /**
+     * 解析异常/未完成的<cache/>
+     */
     private void parsePendingStatements() {
         Collection<XMLStatementBuilder> incompleteStatements = configuration
                 .getIncompleteStatements();
@@ -390,6 +417,7 @@ public class XMLMapperBuilder extends BaseBuilder {
         //解析映射类的Class
         Class<?> typeClass = resolveClass(type);
         Discriminator discriminator = null;
+        //<resultMapping/>的每一个子标签映射成一个或多个RequestMapping对象
         List<ResultMapping> resultMappings = new ArrayList<>();
         //添加其他的映射
         resultMappings.addAll(additionalResultMappings);
@@ -635,16 +663,19 @@ public class XMLMapperBuilder extends BaseBuilder {
         if (namespace != null) {
             Class<?> boundType = null;
             try {
+                //每一个namespace对应一个Mapper.java，得到Class
                 boundType = Resources.classForName(namespace);
             } catch (ClassNotFoundException e) {
                 //ignore, bound type is not required
             }
             if (boundType != null) {
+                //Mapper还没注册
                 if (!configuration.hasMapper(boundType)) {
                     // Spring may not know the real resource name so we set a flag
                     // to prevent loading again this resource from the mapper interface
                     // look at MapperAnnotationBuilder#loadXmlResource
                     configuration.addLoadedResource("namespace:" + namespace);
+                    //添加Mapper到Configuration.mapperRegistry中
                     configuration.addMapper(boundType);
                 }
             }
