@@ -92,7 +92,10 @@ public class MapperBuilderAssistant extends BaseBuilder {
 
 	/**
 	 * 真实命名空间 currentNamespace.base，
-	 * 比如有个标签 <association property="author" column="author_id" javaType="Author" select="selectAuthor"/>
+	 * 比如有个标签
+	 * <p>
+	 * <association property="author" column="author_id" javaType="Author" select="selectAuthor"/>
+	 * </p>
 	 * 这里的select实际上对应着某个语句标签<select id= "selectAuthor"/>，那么这个被引用的<select/>标签的命名空间就是
 	 * currentNamespace.base
 	 */
