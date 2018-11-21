@@ -109,7 +109,7 @@ public class XMLStatementBuilder extends BaseBuilder {
 		boolean resultOrdered = context.getBooleanAttribute("resultOrdered", false);
 
 		// Include Fragments before parsing
-
+		//解析<include/>，并替换为对应的sql片段
 		XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration,
 			builderAssistant);
 		includeParser.applyIncludes(context.getNode());
