@@ -621,10 +621,17 @@ public class MapperBuilderAssistant extends BaseBuilder {
 			configuration.isLazyLoadingEnabled());
 	}
 
+	/**
+	 * 获得语言驱动类
+	 * @param langClass 语言驱动类
+	 * @return
+	 */
 	public LanguageDriver getLanguageDriver(Class<? extends LanguageDriver> langClass) {
 		if (langClass != null) {
+			//不存在先创建并注册
 			configuration.getLanguageRegistry().register(langClass);
 		} else {
+			//默认驱动类
 			langClass = configuration.getLanguageRegistry().getDefaultDriverClass();
 		}
 		return configuration.getLanguageRegistry().getDriver(langClass);
