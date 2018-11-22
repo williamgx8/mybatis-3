@@ -440,17 +440,28 @@ public class MapperBuilderAssistant extends BaseBuilder {
 		return parameterMap;
 	}
 
+	/**
+	 * 获得ResultMap集合
+	 * @param resultMap 语句标签resultMap属性
+	 * @param resultType 语句标签resultType属性
+	 * @param statementId 语句标签id
+	 * @return
+	 */
 	private List<ResultMap> getStatementResultMaps(
 		String resultMap,
 		Class<?> resultType,
 		String statementId) {
+
+		//完整名称
 		resultMap = applyCurrentNamespace(resultMap, true);
 
 		List<ResultMap> resultMaps = new ArrayList<>();
 		if (resultMap != null) {
+			//多个resultMap用，分割，该情况出现在存储过程时
 			String[] resultMapNames = resultMap.split(",");
 			for (String resultMapName : resultMapNames) {
 				try {
+					//获取每一个resultMap名称对应ResultMap
 					resultMaps.add(configuration.getResultMap(resultMapName.trim()));
 				} catch (IllegalArgumentException e) {
 					throw new IncompleteElementException(
@@ -458,6 +469,7 @@ public class MapperBuilderAssistant extends BaseBuilder {
 				}
 			}
 		} else if (resultType != null) {
+			//如果存在resultType属性，会先封装成ResultMap
 			ResultMap inlineResultMap = new ResultMap.Builder(
 				configuration,
 				statementId + "-Inline",
@@ -466,6 +478,7 @@ public class MapperBuilderAssistant extends BaseBuilder {
 				null).build();
 			resultMaps.add(inlineResultMap);
 		}
+		//返回解析完的ResultMap集合
 		return resultMaps;
 	}
 
