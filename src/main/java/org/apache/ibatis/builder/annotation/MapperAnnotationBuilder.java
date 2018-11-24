@@ -121,13 +121,6 @@ public class MapperAnnotationBuilder {
 		SQL_PROVIDER_ANNOTATION_TYPES.add(DeleteProvider.class);
 	}
 
-	public MapperAnnotationBuilder(Configuration configuration, Class<?> type) {
-		String resource = type.getName().replace('.', '/') + ".java (best guess)";
-		this.assistant = new MapperBuilderAssistant(configuration, resource);
-		this.configuration = configuration;
-		this.type = type;
-	}
-
 	public void parse() {
 		//Mapper接口Class名称
 		String resource = type.toString();
@@ -157,6 +150,18 @@ public class MapperAnnotationBuilder {
 			}
 		}
 		parsePendingMethods();
+	}
+
+	/**
+	 * Mapper注解解析器
+	 *
+	 * @param type Mapper对应的class类型
+	 */
+	public MapperAnnotationBuilder(Configuration configuration, Class<?> type) {
+		String resource = type.getName().replace('.', '/') + ".java (best guess)";
+		this.assistant = new MapperBuilderAssistant(configuration, resource);
+		this.configuration = configuration;
+		this.type = type;
 	}
 
 	private void parsePendingMethods() {
@@ -209,7 +214,7 @@ public class MapperAnnotationBuilder {
 	}
 
 	/**
-	 * @CacheNamespace  用于缓存的配置
+	 * @CacheNamespace 用于缓存的配置
 	 */
 	private void parseCache() {
 		CacheNamespace cacheDomain = type.getAnnotation(CacheNamespace.class);
@@ -240,7 +245,7 @@ public class MapperAnnotationBuilder {
 	}
 
 	/**
-	 * @CacheNamespaceRef   缓存引用注解
+	 * @CacheNamespaceRef 缓存引用注解
 	 */
 	private void parseCacheRef() {
 		CacheNamespaceRef cacheDomainRef = type.getAnnotation(CacheNamespaceRef.class);
@@ -266,9 +271,14 @@ public class MapperAnnotationBuilder {
 		}
 	}
 
+	/**
+	 * 根据其他注解生成result map id
+	 */
 	private String parseResultMap(Method method) {
 		Class<?> returnType = getReturnType(method);
+		//@ConstructorArgs用于指定结果对象通过那个构造器创建`
 		ConstructorArgs args = method.getAnnotation(ConstructorArgs.class);
+		//类似于@ResultMap
 		Results results = method.getAnnotation(Results.class);
 		TypeDiscriminator typeDiscriminator = method.getAnnotation(TypeDiscriminator.class);
 		String resultMapId = generateResultMapName(method);
@@ -279,23 +289,29 @@ public class MapperAnnotationBuilder {
 
 	private String generateResultMapName(Method method) {
 		Results results = method.getAnnotation(Results.class);
+		//存在@Results，Mapper结果类型.id形式返回
 		if (results != null && !results.id().isEmpty()) {
 			return type.getName() + "." + results.id();
 		}
+		//什么都没有自己生成
 		StringBuilder suffix = new StringBuilder();
+		//根据参数类型名字拼装
 		for (Class<?> c : method.getParameterTypes()) {
 			suffix.append("-");
 			suffix.append(c.getSimpleName());
 		}
+		//没有参数加-void
 		if (suffix.length() < 1) {
 			suffix.append("-void");
 		}
+		//同样返回  Mapper结果类型.方法名.上面自己生成的suffix
 		return type.getName() + "." + method.getName() + suffix;
 	}
 
 	private void applyResultMap(String resultMapId, Class<?> returnType, Arg[] args,
 		Result[] results, TypeDiscriminator discriminator) {
 		List<ResultMapping> resultMappings = new ArrayList<>();
+		//解析@ConstructorArgs中的每一个@Arg为一个ResultMapping
 		applyConstructorArgs(args, returnType, resultMappings);
 		applyResults(results, returnType, resultMappings);
 		Discriminator disc = applyDiscriminator(resultMapId, returnType, discriminator);
@@ -347,6 +363,7 @@ public class MapperAnnotationBuilder {
 
 	/**
 	 * 解析被各种注解修饰的接口方法语句
+	 *
 	 * @param method 接口方法
 	 */
 	void parseStatement(Method method) {
@@ -354,18 +371,25 @@ public class MapperAnnotationBuilder {
 		Class<?> parameterTypeClass = getParameterType(method);
 		//语言驱动
 		LanguageDriver languageDriver = getLanguageDriver(method);
+		//SqlSource包含执行的sql语句和参数
 		SqlSource sqlSource = getSqlSourceFromAnnotations(method, parameterTypeClass,
 			languageDriver);
 		if (sqlSource != null) {
+			//@Options中可以设置sql执行的一些参数，比如缓存，数据集大小等
 			Options options = method.getAnnotation(Options.class);
+			//MapperName.methodName 作为唯一标识
 			final String mappedStatementId = type.getName() + "." + method.getName();
 			Integer fetchSize = null;
 			Integer timeout = null;
 			StatementType statementType = StatementType.PREPARED;
 			ResultSetType resultSetType = null;
+			//sql语句注解类型
 			SqlCommandType sqlCommandType = getSqlCommandType(method);
+			//是否查询标识
 			boolean isSelect = sqlCommandType == SqlCommandType.SELECT;
+			//查询就不会重置缓存
 			boolean flushCache = !isSelect;
+			//查询会使用缓存
 			boolean useCache = isSelect;
 
 			KeyGenerator keyGenerator;
@@ -374,24 +398,30 @@ public class MapperAnnotationBuilder {
 			if (SqlCommandType.INSERT.equals(sqlCommandType) || SqlCommandType.UPDATE
 				.equals(sqlCommandType)) {
 				// first check for SelectKey annotation - that overrides everything else
+				//insert和update可能会涉及一些不同数据库驱动下不同生成列值的方法，对应@SelectKey注解
 				SelectKey selectKey = method.getAnnotation(SelectKey.class);
 				if (selectKey != null) {
+					//解析@SelectKey，得到对应生成器
 					keyGenerator = handleSelectKeyAnnotation(selectKey, mappedStatementId,
 						getParameterType(method), languageDriver);
 					keyProperty = selectKey.keyProperty();
 				} else if (options == null) {
+					//Mapper方法上没有设置@Options，设置全局的generatedKeys
 					keyGenerator = configuration.isUseGeneratedKeys() ? Jdbc3KeyGenerator.INSTANCE
 						: NoKeyGenerator.INSTANCE;
 				} else {
+					//针对特定Mapper方法的keyGenerator
 					keyGenerator = options.useGeneratedKeys() ? Jdbc3KeyGenerator.INSTANCE
 						: NoKeyGenerator.INSTANCE;
 					keyProperty = options.keyProperty();
 					keyColumn = options.keyColumn();
 				}
 			} else {
+				//查询相关方法
 				keyGenerator = NoKeyGenerator.INSTANCE;
 			}
 
+			//处理@Options中配置的属性
 			if (options != null) {
 				if (FlushCachePolicy.TRUE.equals(options.flushCache())) {
 					flushCache = true;
@@ -407,11 +437,13 @@ public class MapperAnnotationBuilder {
 				resultSetType = options.resultSetType();
 			}
 
+			//处理@ResultMap，该注解的值对应Mapper.xml内配置的<resultMap/>的id
 			String resultMapId = null;
 			ResultMap resultMapAnnotation = method.getAnnotation(ResultMap.class);
 			if (resultMapAnnotation != null) {
 				String[] resultMaps = resultMapAnnotation.value();
 				StringBuilder sb = new StringBuilder();
+				//多个resultMap id拼装在一起
 				for (String resultMap : resultMaps) {
 					if (sb.length() > 0) {
 						sb.append(",");
@@ -420,9 +452,11 @@ public class MapperAnnotationBuilder {
 				}
 				resultMapId = sb.toString();
 			} else if (isSelect) {
+				//没有@ResultMap，根据其他注解生成resultMapId
 				resultMapId = parseResultMap(method);
 			}
 
+			//最终将Mapper.java中个一个方法封装成MappedStatement
 			assistant.addMappedStatement(
 				mappedStatementId,
 				sqlSource,
@@ -453,8 +487,8 @@ public class MapperAnnotationBuilder {
 
 	/**
 	 * 语言驱动
+	 *
 	 * @param method 语句接口
-	 * @return
 	 */
 	private LanguageDriver getLanguageDriver(Method method) {
 		//获取@Lang注解内的驱动Class
@@ -469,8 +503,8 @@ public class MapperAnnotationBuilder {
 
 	/**
 	 * 获得参数类型
+	 *
 	 * @param method 语句接口
-	 * @return
 	 */
 	private Class<?> getParameterType(Method method) {
 		Class<?> parameterType = null;
@@ -554,6 +588,13 @@ public class MapperAnnotationBuilder {
 		return returnType;
 	}
 
+	/**
+	 * 根据注解生成SqlSource对象
+	 *
+	 * @param method 被注解的方法
+	 * @param parameterType 参数类型
+	 * @param languageDriver 语言驱动
+	 */
 	private SqlSource getSqlSourceFromAnnotations(Method method, Class<?> parameterType,
 		LanguageDriver languageDriver) {
 		try {
@@ -575,7 +616,9 @@ public class MapperAnnotationBuilder {
 					.invoke(sqlAnnotation);
 				return buildSqlSourceFromStrings(strings, parameterType, languageDriver);
 			} else if (sqlProviderAnnotationType != null) {
+				//提供的是@Provider注解
 				Annotation sqlProviderAnnotation = method.getAnnotation(sqlProviderAnnotationType);
+				//创建ProviderSqlSource
 				return new ProviderSqlSource(assistant.getConfiguration(), sqlProviderAnnotation,
 					type, method);
 			}
@@ -586,21 +629,35 @@ public class MapperAnnotationBuilder {
 		}
 	}
 
+	/**
+	 * 根据sql语句片段strings和参数类型数组parameterTypeClass和语言驱动创建SqlSource
+	 *
+	 * @param strings sql片段集合
+	 * @param parameterTypeClass 参数类型
+	 * @param languageDriver 语言驱动
+	 */
 	private SqlSource buildSqlSourceFromStrings(String[] strings, Class<?> parameterTypeClass,
 		LanguageDriver languageDriver) {
 		final StringBuilder sql = new StringBuilder();
+		//拼接sql语句
 		for (String fragment : strings) {
 			sql.append(fragment);
 			sql.append(" ");
 		}
+		//创建SqlSource
 		return languageDriver
 			.createSqlSource(configuration, sql.toString().trim(), parameterTypeClass);
 	}
 
+	/**
+	 * SQL语句类型（INSERT、UPDATE、SELECT等）
+	 */
 	private SqlCommandType getSqlCommandType(Method method) {
+		//普通sql语句注解
 		Class<? extends Annotation> type = getSqlAnnotationType(method);
 
 		if (type == null) {
+			//sql provider注解
 			type = getSqlProviderAnnotationType(method);
 
 			if (type == null) {
@@ -699,10 +756,19 @@ public class MapperAnnotationBuilder {
 		return result.one().select().length() > 0 || result.many().select().length() > 0;
 	}
 
+	/**
+	 * 解析@ConstructorArs中的每一个@Arg属性，举例：
+	 *
+	 * @ ConstructorArgs({
+	 * @ Arg(property = "id", column = "cid", id = true),
+	 * @ Arg(property = "name", column = "name")
+	 * })
+	 */
 	private void applyConstructorArgs(Arg[] args, Class<?> resultType,
 		List<ResultMapping> resultMappings) {
 		for (Arg arg : args) {
 			List<ResultFlag> flags = new ArrayList<>();
+			//每一个@ConstructorArgs都需要加上constructor标识，其中的id，有需要额外加上id标识
 			flags.add(ResultFlag.CONSTRUCTOR);
 			if (arg.id()) {
 				flags.add(ResultFlag.ID);
@@ -710,6 +776,7 @@ public class MapperAnnotationBuilder {
 			@SuppressWarnings("unchecked")
 			Class<? extends TypeHandler<?>> typeHandler = (Class<? extends TypeHandler<?>>)
 				(arg.typeHandler() == UnknownTypeHandler.class ? null : arg.typeHandler());
+			//一个@ConstructorArgs和@ResultMap是同级的，都封装成ResultMap，而每个注解中的每个条目同样对应一个ResultMapping
 			ResultMapping resultMapping = assistant.buildResultMapping(
 				resultType,
 				nullOrEmpty(arg.name()),
@@ -733,21 +800,40 @@ public class MapperAnnotationBuilder {
 		return value == null || value.trim().length() == 0 ? null : value;
 	}
 
+	/**
+	 * @ Results的value属性值
+	 */
 	private Result[] resultsIf(Results results) {
 		return results == null ? new Result[0] : results.value();
 	}
 
+	/**
+	 * @ ConstructorArgs的value属性值
+	 */
 	private Arg[] argsIf(ConstructorArgs args) {
 		return args == null ? new Arg[0] : args.value();
 	}
 
+	/**
+	 * 解析@SelectKey注解，举例： @SelectKey(statement="call next value for TestSequence", keyProperty="nameId", before=true, resultType=int.class)
+	 *
+	 * @param selectKeyAnnotation @SelectKey注解实例
+	 * @param baseStatementId 被标注@SelectKey方法的唯一标示
+	 * @param parameterTypeClass 参数类型，一个参数就是该参数本身的类型，多个参数就是ParamMap类型
+	 * @param languageDriver 语句驱动
+	 */
 	private KeyGenerator handleSelectKeyAnnotation(SelectKey selectKeyAnnotation,
 		String baseStatementId, Class<?> parameterTypeClass, LanguageDriver languageDriver) {
+		//@SelectKey和<selectKey/>都会封装成MappedStatement，而MappedStatement需要一个唯一标示
 		String id = baseStatementId + SelectKeyGenerator.SELECT_KEY_SUFFIX;
+		//生成语句的返回值
 		Class<?> resultTypeClass = selectKeyAnnotation.resultType();
+		//和存储过程相关的语句类型
 		StatementType statementType = selectKeyAnnotation.statementType();
+		//生成列的列名
 		String keyProperty = selectKeyAnnotation.keyProperty();
 		String keyColumn = selectKeyAnnotation.keyColumn();
+		//执行时机
 		boolean executeBefore = selectKeyAnnotation.before();
 
 		// defaults
@@ -760,19 +846,23 @@ public class MapperAnnotationBuilder {
 		String resultMap = null;
 		ResultSetType resultSetTypeEnum = null;
 
+		//封装了sql语句和参数的SqlSource
 		SqlSource sqlSource = buildSqlSourceFromStrings(selectKeyAnnotation.statement(),
 			parameterTypeClass, languageDriver);
 		SqlCommandType sqlCommandType = SqlCommandType.SELECT;
 
+		//生成每一个@SelectKey对应的MappedStatement
 		assistant
 			.addMappedStatement(id, sqlSource, statementType, sqlCommandType, fetchSize, timeout,
 				parameterMap, parameterTypeClass, resultMap, resultTypeClass, resultSetTypeEnum,
 				flushCache, useCache, false,
 				keyGenerator, keyProperty, keyColumn, null, languageDriver, null);
 
+		//又在@SelectKey的唯一标示前面加了currentNamespace，真恶心
 		id = assistant.applyCurrentNamespace(id, false);
-
+		//得到上面生成的MappedStatement
 		MappedStatement keyStatement = configuration.getMappedStatement(id, false);
+		//再包成SelectKeyGenerator
 		SelectKeyGenerator answer = new SelectKeyGenerator(keyStatement, executeBefore);
 		configuration.addKeyGenerator(id, answer);
 		return answer;
