@@ -221,7 +221,7 @@ public class MapperBuilderAssistant extends BaseBuilder {
 	 * @param id <resultMap/>唯一标识
 	 * @param type <resultMap/>映射成的Class
 	 * @param extend 继承的<resultMap/>id
-	 * @param discriminator 决定映射成为那个类的鉴别器
+	 * @param discriminator 决定映射成为那个类的鉴别器，此时只是简单的保存，并不会做特殊的处理
 	 * @param resultMappings 包含所有<resultMap/>属性的集合
 	 * @param autoMapping 是否自动映射
 	 * @return ResultMap对象

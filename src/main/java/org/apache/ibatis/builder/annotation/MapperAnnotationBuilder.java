@@ -145,10 +145,12 @@ public class MapperAnnotationBuilder {
 						parseStatement(method);
 					}
 				} catch (IncompleteElementException e) {
+					//出现异常，每一个异常由一个MethodResolver处理，放入未完成列表中
 					configuration.addIncompleteMethod(new MethodResolver(this, method));
 				}
 			}
 		}
+		//处理方法未完成列表
 		parsePendingMethods();
 	}
 
@@ -167,9 +169,11 @@ public class MapperAnnotationBuilder {
 	private void parsePendingMethods() {
 		Collection<MethodResolver> incompleteMethods = configuration.getIncompleteMethods();
 		synchronized (incompleteMethods) {
+			//遍历每一个未完成解析的方法解析器
 			Iterator<MethodResolver> iter = incompleteMethods.iterator();
 			while (iter.hasNext()) {
 				try {
+					//解析后删除
 					iter.next().resolve();
 					iter.remove();
 				} catch (IncompleteElementException e) {
@@ -276,12 +280,14 @@ public class MapperAnnotationBuilder {
 	 */
 	private String parseResultMap(Method method) {
 		Class<?> returnType = getReturnType(method);
-		//@ConstructorArgs用于指定结果对象通过那个构造器创建`
+		//@ConstructorArgs用于指定结果对象通过哪个构造器创建
 		ConstructorArgs args = method.getAnnotation(ConstructorArgs.class);
 		//类似于@ResultMap
 		Results results = method.getAnnotation(Results.class);
 		TypeDiscriminator typeDiscriminator = method.getAnnotation(TypeDiscriminator.class);
+		//生成语句方法唯一标识
 		String resultMapId = generateResultMapName(method);
+		//解析各个标签为ResultMap
 		applyResultMap(resultMapId, returnType, argsIf(args), resultsIf(results),
 			typeDiscriminator);
 		return resultMapId;
@@ -313,21 +319,34 @@ public class MapperAnnotationBuilder {
 		List<ResultMapping> resultMappings = new ArrayList<>();
 		//解析@ConstructorArgs中的每一个@Arg为一个ResultMapping
 		applyConstructorArgs(args, returnType, resultMappings);
+		//解析@Results中的每一个@Result为一个ResultMapping
 		applyResults(results, returnType, resultMappings);
+		//解析@TypeDiscriminator，被标注列值对应的映射实体用哪个resultMap封装
 		Discriminator disc = applyDiscriminator(resultMapId, returnType, discriminator);
 		// TODO add AutoMappingBehaviour
+		//根据解析的所有ResultMapping --> ResultMap
 		assistant.addResultMap(resultMapId, returnType, null, disc, resultMappings, null);
+		//上面的方法并不会对discriminator做过多的处理，这里才会将discriminator解析为ResultMap
 		createDiscriminatorResultMaps(resultMapId, returnType, discriminator);
 	}
 
+	/**
+	 * 为@TypeDiscriminator创建ResultMap
+	 * @param resultMapId 语句方法唯一标识
+	 * @param resultType 语句方法返回类型
+	 * @param discriminator 鉴别器对象
+	 */
 	private void createDiscriminatorResultMaps(String resultMapId, Class<?> resultType,
 		TypeDiscriminator discriminator) {
 		if (discriminator != null) {
+			//将每一个@Case映射为一个@ResultMapping
 			for (Case c : discriminator.cases()) {
 				String caseResultMapId = resultMapId + "-" + c.value();
 				List<ResultMapping> resultMappings = new ArrayList<>();
 				// issue #136
+				//@Case中可能存在@Constructor
 				applyConstructorArgs(c.constructArgs(), resultType, resultMappings);
+				//@Case中可能存在@Results
 				applyResults(c.results(), resultType, resultMappings);
 				// TODO add AutoMappingBehaviour
 				assistant.addResultMap(caseResultMapId, c.type(), resultMapId, null, resultMappings,
@@ -336,22 +355,42 @@ public class MapperAnnotationBuilder {
 		}
 	}
 
+	/**
+	 * 解析@TypeDiscriminator，举例
+	 * @ TypeDiscriminator(
+	 *       column = "draft",
+	 *       javaType = int.class,
+	 *       cases = {@Case(value = "1", type = DraftPost.class,
+	 *           results = {@Result(id = true, property = "id", column = "id")})}
+	 *   )
+	 * @param resultMapId 语句方法的唯一标识
+	 * @param resultType 语句方法的返回值
+	 * @param discriminator @TypeDiscriminator标签对象
+	 * @return
+	 */
 	private Discriminator applyDiscriminator(String resultMapId, Class<?> resultType,
 		TypeDiscriminator discriminator) {
 		if (discriminator != null) {
+			//数据库的哪一列需要映射
 			String column = discriminator.column();
+			//要映射的Java类型，该类型可能是个枚举或者是个父类
 			Class<?> javaType =
 				discriminator.javaType() == void.class ? String.class : discriminator.javaType();
+			//对应的JDBC类型
 			JdbcType jdbcType =
 				discriminator.jdbcType() == JdbcType.UNDEFINED ? null : discriminator.jdbcType();
 			@SuppressWarnings("unchecked")
+				//处理结果的TypeHandler
 			Class<? extends TypeHandler<?>> typeHandler = (Class<? extends TypeHandler<?>>)
 				(discriminator.typeHandler() == UnknownTypeHandler.class ? null
 					: discriminator.typeHandler());
+			//@Case
 			Case[] cases = discriminator.cases();
 			Map<String, String> discriminatorMap = new HashMap<>();
+			//记录每一个@Case
 			for (Case c : cases) {
 				String value = c.value();
+				//每一个@Case的标识
 				String caseResultMapId = resultMapId + "-" + value;
 				discriminatorMap.put(value, caseResultMapId);
 			}
@@ -528,46 +567,72 @@ public class MapperAnnotationBuilder {
 
 	private Class<?> getReturnType(Method method) {
 		Class<?> returnType = method.getReturnType();
+		//获取方法真是返回类型，可能存在泛型什么的
 		Type resolvedReturnType = TypeParameterResolver.resolveReturnType(method, type);
 		if (resolvedReturnType instanceof Class) {
 			returnType = (Class<?>) resolvedReturnType;
+			//如果是数组类型，获取其中每一个元素的类型
 			if (returnType.isArray()) {
 				returnType = returnType.getComponentType();
 			}
 			// gcode issue #508
+			/**
+			 * 在Mapper接口上的注解可以这么写
+			 *   @ Select("select * from users")
+			 *   @ ResultType(User.class)
+			 *   void getAllUsers(UserResultHandler resultHandler);
+			 * 理论上该方法是要求返回一个User列表，但方法签名上却没有这么定义，Mybatis将处理结果集的途径
+			 * 放在了参数UserResultHandler中，而@ResultType就指定了处理出的类型
+			 */
 			if (void.class.equals(returnType)) {
+				//void返回值签名，可能配置了@ResultType注解
 				ResultType rt = method.getAnnotation(ResultType.class);
 				if (rt != null) {
+					//@ResultType的注解才是真正返回的类型
 					returnType = rt.value();
 				}
 			}
+			//带泛型的类型，比如List<T extends User>
 		} else if (resolvedReturnType instanceof ParameterizedType) {
 			ParameterizedType parameterizedType = (ParameterizedType) resolvedReturnType;
+			//除去泛型的类型
 			Class<?> rawType = (Class<?>) parameterizedType.getRawType();
+			//如果是集合和游标类型
 			if (Collection.class.isAssignableFrom(rawType) || Cursor.class
 				.isAssignableFrom(rawType)) {
+				//实际的泛型类，可能有好多，比如Map<String,T extends User>
 				Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
 				if (actualTypeArguments != null && actualTypeArguments.length == 1) {
+					//只有一个泛型参数
 					Type returnTypeParameter = actualTypeArguments[0];
+					//泛型是普通的Class，比如List<String>中的String
 					if (returnTypeParameter instanceof Class<?>) {
+						//直接取出即可
 						returnType = (Class<?>) returnTypeParameter;
 					} else if (returnTypeParameter instanceof ParameterizedType) {
 						// (gcode issue #443) actual type can be a also a parameterized type
+						//泛型还是一个带参数的类型，像上面一样得到原始类型，比如List<List<String>>
 						returnType = (Class<?>) ((ParameterizedType) returnTypeParameter)
 							.getRawType();
 					} else if (returnTypeParameter instanceof GenericArrayType) {
+						//泛型数组，比如T[]，得到每一个元素的类型
 						Class<?> componentType = (Class<?>) ((GenericArrayType) returnTypeParameter)
 							.getGenericComponentType();
 						// (gcode issue #525) support List<byte[]>
+						//根据元素类型创建一个长度为0的数组，并返回该数组类型
 						returnType = Array.newInstance(componentType, 0).getClass();
 					}
 				}
+				//返回值是一个Map，@MapKey的value标明返回Map的key是哪个字段
 			} else if (method.isAnnotationPresent(MapKey.class) && Map.class
 				.isAssignableFrom(rawType)) {
 				// (gcode issue 504) Do not look into Maps if there is not MapKey annotation
+				//Map中的key和value对应的Type
 				Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+				//Map必须要有两个
 				if (actualTypeArguments != null && actualTypeArguments.length == 2) {
 					Type returnTypeParameter = actualTypeArguments[1];
+					//同样再细分是Class还是带参数的key
 					if (returnTypeParameter instanceof Class<?>) {
 						returnType = (Class<?>) returnTypeParameter;
 					} else if (returnTypeParameter instanceof ParameterizedType) {
@@ -576,8 +641,10 @@ public class MapperAnnotationBuilder {
 							.getRawType();
 					}
 				}
+				//处理Optional类型
 			} else if (Optional.class.equals(rawType)) {
 				Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+				//得到Optional唯一一个参数类型
 				Type returnTypeParameter = actualTypeArguments[0];
 				if (returnTypeParameter instanceof Class<?>) {
 					returnType = (Class<?>) returnTypeParameter;
@@ -697,16 +764,25 @@ public class MapperAnnotationBuilder {
 		return null;
 	}
 
+	/**
+	 * 解析@Results
+	 * @param results @Results中的所有@Result
+	 * @param resultType 语句方法的返回类型
+	 * @param resultMappings 封装解析结果的集合
+	 */
 	private void applyResults(Result[] results, Class<?> resultType,
 		List<ResultMapping> resultMappings) {
+		//遍历每一个@Result
 		for (Result result : results) {
 			List<ResultFlag> flags = new ArrayList<>();
 			if (result.id()) {
+				//如果是id对应的@Result，打上标识
 				flags.add(ResultFlag.ID);
 			}
 			@SuppressWarnings("unchecked")
 			Class<? extends TypeHandler<?>> typeHandler = (Class<? extends TypeHandler<?>>)
 				((result.typeHandler() == UnknownTypeHandler.class) ? null : result.typeHandler());
+			//每一个@Result对应一个ResultMapping
 			ResultMapping resultMapping = assistant.buildResultMapping(
 				resultType,
 				nullOrEmpty(result.property()),
