@@ -29,6 +29,7 @@ import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 
 /**
+ * 各种构造器的基类，比如XmlMapperBuilder、XmlConfigBuilder、XmlScriptBuilder、XmlStatementBuilder
  * @author Clinton Begin
  */
 public abstract class BaseBuilder {

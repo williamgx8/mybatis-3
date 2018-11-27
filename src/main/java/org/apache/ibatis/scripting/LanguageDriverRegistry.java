@@ -23,10 +23,16 @@ import java.util.Map;
  */
 public class LanguageDriverRegistry {
 
+  //Class和对应LanguageDriver映射
   private final Map<Class<? extends LanguageDriver>, LanguageDriver> LANGUAGE_DRIVER_MAP = new HashMap<>();
 
+  //默认语言驱动
   private Class<? extends LanguageDriver> defaultDriverClass;
 
+  /**
+   * 注册语言驱动，放入Map集合中
+   * @param cls
+   */
   public void register(Class<? extends LanguageDriver> cls) {
     if (cls == null) {
       throw new IllegalArgumentException("null is not a valid Language Driver");
@@ -62,6 +68,10 @@ public class LanguageDriverRegistry {
     return defaultDriverClass;
   }
 
+  /**
+   * 设置默认语言驱动，如果配置的话就按照Config.xml中配置的默认语言驱动，否则默认XmlLanguageDriver
+   * @param defaultDriverClass
+   */
   public void setDefaultDriverClass(Class<? extends LanguageDriver> defaultDriverClass) {
     register(defaultDriverClass);
     this.defaultDriverClass = defaultDriverClass;
