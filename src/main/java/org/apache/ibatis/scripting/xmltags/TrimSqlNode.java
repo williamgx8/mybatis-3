@@ -25,6 +25,8 @@ import java.util.StringTokenizer;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * <trim/> 对应sql节点，并且<trim/>是<set/>和<where/>的父节点，有一部分公用
+ *
  * @author Clinton Begin
  */
 public class TrimSqlNode implements SqlNode {
@@ -59,16 +61,19 @@ public class TrimSqlNode implements SqlNode {
 
 	@Override
 	public boolean apply(DynamicContext context) {
+		//FilteredDynamicContext会先被传递给下一层子节点处理，其中包含了处理过的sql，再回到上层处理
 		FilteredDynamicContext filteredDynamicContext = new FilteredDynamicContext(context);
+		//先让子节点处理逻辑
 		boolean result = contents.apply(filteredDynamicContext);
+		//将该层及所有子层处理的结果进行汇总处理
 		filteredDynamicContext.applyAll();
 		return result;
 	}
 
 	/**
 	 * 前/后缀覆盖解析
+	 *
 	 * @param overrides 覆盖内容
-	 * @return
 	 */
 	private static List<String> parseOverrides(String overrides) {
 		if (overrides != null) {
@@ -99,10 +104,20 @@ public class TrimSqlNode implements SqlNode {
 			this.sqlBuffer = new StringBuilder();
 		}
 
+		/**
+		 * 汇总处理当前层和所有子层sql片段
+		 */
 		public void applyAll() {
+			//sqlBuffer中可能包含子层sql片段
 			sqlBuffer = new StringBuilder(sqlBuffer.toString().trim());
+			/**
+			 * 将原始sql片段都变成大写的目的是为了统一进行前后缀配置规则的匹配，不能和原始sql进行匹配是因为，
+			 * 原始sql不知道用户写的是大写还是小写，也不能将用户的sql随意替换成统一的模式，因此只能讲前后缀
+			 * 规则统一成某种样式，而原始sql用一个副本也统一成和规则相同的样式，才能比较
+			 */
 			String trimmedUppercaseSql = sqlBuffer.toString().toUpperCase(Locale.ENGLISH);
 			if (trimmedUppercaseSql.length() > 0) {
+				//处理前缀和后缀
 				applyPrefix(sqlBuffer, trimmedUppercaseSql);
 				applySuffix(sqlBuffer, trimmedUppercaseSql);
 			}
@@ -134,17 +149,28 @@ public class TrimSqlNode implements SqlNode {
 			return delegate.getSql();
 		}
 
+		/**
+		 * 处理前缀
+		 *
+		 * @param sql 待处理的sql片段
+		 */
 		private void applyPrefix(StringBuilder sql, String trimmedUppercaseSql) {
+			//前缀尚未处理
 			if (!prefixApplied) {
+				//置为已经处理
 				prefixApplied = true;
+				//处理前缀覆盖
 				if (prefixesToOverride != null) {
+					//多个前缀覆盖，只可能存在一个匹配的，找到匹配的删除
 					for (String toRemove : prefixesToOverride) {
+						//因为prefixesToOverride中的数据都已经被转成大写了，所以需要与传进来的trimmedUppercaseSql进行比较
 						if (trimmedUppercaseSql.startsWith(toRemove)) {
 							sql.delete(0, toRemove.trim().length());
 							break;
 						}
 					}
 				}
+				//前缀添加
 				if (prefix != null) {
 					sql.insert(0, " ");
 					sql.insert(0, prefix);
@@ -152,9 +178,17 @@ public class TrimSqlNode implements SqlNode {
 			}
 		}
 
+		/**
+		 * 处理后缀
+		 * @param sql 待处理的sql片段
+		 * @param trimmedUppercaseSql 已转成大写的Sql片段
+		 */
 		private void applySuffix(StringBuilder sql, String trimmedUppercaseSql) {
+			//后缀尚未处理
 			if (!suffixApplied) {
+				//标志已经处理
 				suffixApplied = true;
+				//处理后缀覆盖
 				if (suffixesToOverride != null) {
 					for (String toRemove : suffixesToOverride) {
 						if (trimmedUppercaseSql.endsWith(toRemove) || trimmedUppercaseSql
@@ -166,6 +200,7 @@ public class TrimSqlNode implements SqlNode {
 						}
 					}
 				}
+				//处理后缀插入
 				if (suffix != null) {
 					sql.append(" ");
 					sql.append(suffix);

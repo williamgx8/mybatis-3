@@ -64,6 +64,11 @@ public class DynamicContext {
 		return bindings;
 	}
 
+	/**
+	 * 往上下文塞key-value对
+	 * @param name
+	 * @param value
+	 */
 	public void bind(String name, Object value) {
 		bindings.put(name, value);
 	}
