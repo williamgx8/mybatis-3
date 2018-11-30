@@ -33,6 +33,7 @@ import org.apache.ibatis.session.Configuration;
  */
 public class DynamicContext {
 
+	//对应存放请求参数的特殊key
 	public static final String PARAMETER_OBJECT_KEY = "_parameter";
 	public static final String DATABASE_ID_KEY = "_databaseId";
 
@@ -66,8 +67,6 @@ public class DynamicContext {
 
 	/**
 	 * 往上下文塞key-value对
-	 * @param name
-	 * @param value
 	 */
 	public void bind(String name, Object value) {
 		bindings.put(name, value);
@@ -75,6 +74,7 @@ public class DynamicContext {
 
 	/**
 	 * 拼装sql
+	 *
 	 * @param sql sql片段
 	 */
 	public void appendSql(String sql) {
