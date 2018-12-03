@@ -77,10 +77,11 @@ public class ForEachSqlNode implements SqlNode {
 			return true;
 		}
 		boolean first = true;
-		//第一个元素需要加上open中配置的内容
+		//第一个元素需要加上open中配置的内容，内部会将prefixApplied置为true
 		applyOpen(context);
 		int i = 0;
 		for (Object o : iterable) {
+			//先暂存一下context，由于下面要处理前后缀会将context变成PrefixedContext
 			DynamicContext oldContext = context;
 			//如果是第一个元素，或者元素间没有分隔符
 			if (first || separator == null) {
@@ -88,6 +89,7 @@ public class ForEachSqlNode implements SqlNode {
 			} else {
 				context = new PrefixedContext(context, separator);
 			}
+			//唯一数不清楚有什么用
 			int uniqueNumber = context.getUniqueNumber();
 			// Issue #709
 			if (o instanceof Map.Entry) {
@@ -96,30 +98,51 @@ public class ForEachSqlNode implements SqlNode {
 				applyIndex(context, mapEntry.getKey(), uniqueNumber);
 				applyItem(context, mapEntry.getValue(), uniqueNumber);
 			} else {
+				//如果配置了index属性，且ognl表达式中存在index对应的位置，进行处理
 				applyIndex(context, i, uniqueNumber);
+				//处理每一个元素item
 				applyItem(context, o, uniqueNumber);
 			}
+			//将sql片段中的#{item}等内容换成applyItem中生成的内部的item名称
 			contents.apply(
 				new FilteredDynamicContext(configuration, context, index, item, uniqueNumber));
+			//不是第一个元素了
 			if (first) {
 				first = !((PrefixedContext) context).isPrefixApplied();
 			}
 			context = oldContext;
 			i++;
 		}
+		//处理close属性字符
 		applyClose(context);
+		//移除上下文中以item属性名和index属性名为key的map，只保留根据两者生成的mybatis内部唯一标识为key的那一组
 		context.getBindings().remove(item);
 		context.getBindings().remove(index);
 		return true;
 	}
 
+	/**
+	 * 处理index属性
+	 *
+	 * @param context 上下文对象
+	 */
 	private void applyIndex(DynamicContext context, Object o, int i) {
+		//index属性存在才需要处理
 		if (index != null) {
+			//分为两部分，1. key为<foreach/>上index属性名，value为index值
 			context.bind(index, o);
+			//2. key为mybatis内部存储的值，value为index的值
 			context.bind(itemizeItem(index, i), o);
 		}
 	}
 
+	/**
+	 * 处理每一个item属性对应sql片段中的ognl表达式
+	 *
+	 * @param context 上下文
+	 * @param o 每一个遍历到的真实参数
+	 * @param i 唯一标示
+	 */
 	private void applyItem(DynamicContext context, Object o, int i) {
 		if (item != null) {
 			context.bind(item, o);
@@ -136,6 +159,9 @@ public class ForEachSqlNode implements SqlNode {
 		}
 	}
 
+	/**
+	 * 给sql片段加上总的后缀
+	 */
 	private void applyClose(DynamicContext context) {
 		if (close != null) {
 			context.appendSql(close);
@@ -177,6 +203,11 @@ public class ForEachSqlNode implements SqlNode {
 			return delegate.getSql();
 		}
 
+		/**
+		 * 如果sql片段中存在#{}占位符，替换成mybatis内部唯一的标识
+		 *
+		 * @param sql sql片段
+		 */
 		@Override
 		public void appendSql(String sql) {
 			GenericTokenParser parser = new GenericTokenParser("#{", "}", content -> {
@@ -227,12 +258,21 @@ public class ForEachSqlNode implements SqlNode {
 			delegate.bind(name, value);
 		}
 
+		/**
+		 * 重写父类DynamicContext的appendSql，主要为了处理前缀标识
+		 *
+		 * @param sql sql片段
+		 */
 		@Override
 		public void appendSql(String sql) {
+			//如果前缀还未被处理，且sql还没有（说明刚开始）
 			if (!prefixApplied && sql != null && sql.trim().length() > 0) {
+				//加上前缀
 				delegate.appendSql(prefix);
+				//将前缀处理置为true
 				prefixApplied = true;
 			}
+			//再交给父类做真正的sql追加
 			delegate.appendSql(sql);
 		}
 

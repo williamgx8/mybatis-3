@@ -1,17 +1,17 @@
 /**
- *    Copyright 2009-2018 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2018 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.scripting.xmltags;
 
@@ -23,6 +23,8 @@ import org.apache.ibatis.scripting.ScriptingException;
 import org.apache.ibatis.type.SimpleTypeRegistry;
 
 /**
+ * 文本sql节点对象，其中可能存在占位符
+ *
  * @author Clinton Begin
  */
 public class TextSqlNode implements SqlNode {
@@ -43,9 +45,12 @@ public class TextSqlNode implements SqlNode {
 	 * 存在${}占位符为动态sql
 	 */
 	public boolean isDynamic() {
+		//${}占位符解析器
 		DynamicCheckerTokenParser checker = new DynamicCheckerTokenParser();
 		GenericTokenParser parser = createParser(checker);
+		//解析占位符为真正的值
 		parser.parse(text);
+		//标记为动态文本
 		return checker.isDynamic();
 	}
 
@@ -72,16 +77,21 @@ public class TextSqlNode implements SqlNode {
 
 		@Override
 		public String handleToken(String content) {
+			//取出上下文中_parameter参数的值，该值封装了所有的参数
 			Object parameter = context.getBindings().get("_parameter");
 			if (parameter == null) {
 				context.getBindings().put("value", null);
 			} else if (SimpleTypeRegistry.isSimpleType(parameter.getClass())) {
+				//如果是简单类型放入上下文中，key为value
 				context.getBindings().put("value", parameter);
 			}
+			//参数为复杂类型，根据ognl表达式从复杂类型中得到${}对应的值
 			Object value = OgnlCache.getValue(content, context.getBindings());
 			String srtValue = (value == null ? ""
 				: String.valueOf(value)); // issue #274 return "" instead of "null"
+			//处理需要过滤的内容
 			checkInjection(srtValue);
+			//返回解析出的值
 			return srtValue;
 		}
 
