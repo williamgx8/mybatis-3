@@ -42,25 +42,32 @@ public class TextSqlNode implements SqlNode {
 	}
 
 	/**
-	 * 存在${}占位符为动态sql
+	 * 判断该节点sql中是否存在${}占位符
 	 */
 	public boolean isDynamic() {
-		//${}占位符解析器
+		//${}占位符解析器，该解析器只是用来判断sql中是否存在${}，存在其内部的dynamic字段为True
 		DynamicCheckerTokenParser checker = new DynamicCheckerTokenParser();
 		GenericTokenParser parser = createParser(checker);
 		//解析占位符为真正的值
 		parser.parse(text);
-		//标记为动态文本
+		//返回是否动态sql
 		return checker.isDynamic();
 	}
 
 	@Override
 	public boolean apply(DynamicContext context) {
+		//通过BindingTokenParser处理 ${} 占位符
 		GenericTokenParser parser = createParser(new BindingTokenParser(context, injectionFilter));
+		//解析完成${}后将sql片段放入上下文中，此时sql中不存在${}，但可能还存在#{}占位符
 		context.appendSql(parser.parse(text));
 		return true;
 	}
 
+	/**
+	 * 创建${}占位符解析器，handler用于处理${}内包裹的内容
+	 *
+	 * @param handler 处理${}包裹内容的处理器
+	 */
 	private GenericTokenParser createParser(TokenHandler handler) {
 		return new GenericTokenParser("${", "}", handler);
 	}

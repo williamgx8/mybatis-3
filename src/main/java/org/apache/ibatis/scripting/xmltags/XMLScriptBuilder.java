@@ -1,17 +1,17 @@
 /**
- *    Copyright 2009-2018 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2018 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.scripting.xmltags;
 
@@ -33,6 +33,7 @@ import org.w3c.dom.NodeList;
  * 动态SQL脚本构建器，对于<select/>、<update/>等语句标签来说，有两种情况是动态的：
  * 1. sql中存在${}之类的占位符
  * 2. sql中存在<set/>、<if/>等动态sql标签
+ *
  * @author Clinton Begin
  */
 public class XMLScriptBuilder extends BaseBuilder {
@@ -73,14 +74,16 @@ public class XMLScriptBuilder extends BaseBuilder {
 
 	/**
 	 * 解析SQL脚本，包括对于动态SQL的解析
-	 * @return
 	 */
 	public SqlSource parseScriptNode() {
+		//sql脚本的顶层sqlNode，其中包含了层级关系的所有SqlNode节点
 		MixedSqlNode rootSqlNode = parseDynamicTags(context);
 		SqlSource sqlSource = null;
 		if (isDynamic) {
+			//如果整个sql中任何一处出现${}或者任何的动态sql标签，比如<if/>，就创建DynamicSqlSource
 			sqlSource = new DynamicSqlSource(configuration, rootSqlNode);
 		} else {
+			//否则就是单纯的文本sqlSource
 			sqlSource = new RawSqlSource(configuration, rootSqlNode, parameterType);
 		}
 		return sqlSource;
@@ -88,8 +91,6 @@ public class XMLScriptBuilder extends BaseBuilder {
 
 	/**
 	 * 解析动态标签和动态占位符
-	 * @param node
-	 * @return
 	 */
 	protected MixedSqlNode parseDynamicTags(XNode node) {
 		List<SqlNode> contents = new ArrayList<>();
@@ -135,9 +136,9 @@ public class XMLScriptBuilder extends BaseBuilder {
 	/**
 	 * 处理<bind/> bind 元素可以从 OGNL 表达式中创建一个变量并将其绑定到上下文，举例：
 	 * <select id="selectBlogsLike" resultType="Blog">
-	 *   <bind name="pattern" value="'%' + _parameter.getTitle() + '%'" />
-	 *   SELECT * FROM BLOG
-	 *   WHERE title LIKE #{pattern}
+	 * <bind name="pattern" value="'%' + _parameter.getTitle() + '%'" />
+	 * SELECT * FROM BLOG
+	 * WHERE title LIKE #{pattern}
 	 * </select>
 	 */
 	private class BindHandler implements NodeHandler {
@@ -191,17 +192,17 @@ public class XMLScriptBuilder extends BaseBuilder {
 	/**
 	 * 处理<where/> 举例：where 元素只会在至少有一个子元素的条件返回 SQL 子句的情况下才去插入“WHERE”子句。
 	 * 而且，若语句的开头为“AND”或“OR”，where 元素也会将它们去除
-	 *  <where>
-	 *     <if test="state != null">
-	 *          state = #{state}
-	 *     </if>
-	 *     <if test="title != null">
-	 *         AND title like #{title}
-	 *     </if>
-	 *     <if test="author != null and author.name != null">
-	 *         AND author_name like #{author.name}
-	 *     </if>
-	 *   </where>
+	 * <where>
+	 * <if test="state != null">
+	 * state = #{state}
+	 * </if>
+	 * <if test="title != null">
+	 * AND title like #{title}
+	 * </if>
+	 * <if test="author != null and author.name != null">
+	 * AND author_name like #{author.name}
+	 * </if>
+	 * </where>
 	 */
 	private class WhereHandler implements NodeHandler {
 
@@ -222,14 +223,14 @@ public class XMLScriptBuilder extends BaseBuilder {
 	/**
 	 * 解析<set/> 该标签肯定在<update/> 内部 用于动态包含需要更新的列，而舍去其它的，举例：
 	 * <update id="updateAuthorIfNecessary">
-	 *   update Author
-	 *     <set>
-	 *       <if test="username != null">username=#{username},</if>
-	 *       <if test="password != null">password=#{password},</if>
-	 *       <if test="email != null">email=#{email},</if>
-	 *       <if test="bio != null">bio=#{bio}</if>
-	 *     </set>
-	 *   where id=#{id}
+	 * update Author
+	 * <set>
+	 * <if test="username != null">username=#{username},</if>
+	 * <if test="password != null">password=#{password},</if>
+	 * <if test="email != null">email=#{email},</if>
+	 * <if test="bio != null">bio=#{bio}</if>
+	 * </set>
+	 * where id=#{id}
 	 * </update>
 	 */
 	private class SetHandler implements NodeHandler {
@@ -251,9 +252,9 @@ public class XMLScriptBuilder extends BaseBuilder {
 	/**
 	 * 解析<foreach/> 对集合进行遍历，可以用于构建in 条件，举例：
 	 * <foreach item="item" index="index" collection="list"
-	 *       open="(" separator="," close=")">
-	 *         #{item}
-	 *   </foreach>
+	 * open="(" separator="," close=")">
+	 * #{item}
+	 * </foreach>
 	 */
 	private class ForEachHandler implements NodeHandler {
 
@@ -307,8 +308,8 @@ public class XMLScriptBuilder extends BaseBuilder {
 	/**
 	 * 解析<otherwise/> 和 <if/>配对
 	 * <otherwise>
-	 *       AND featured = 1
-	 *     </otherwise>
+	 * AND featured = 1
+	 * </otherwise>
 	 */
 	private class OtherwiseHandler implements NodeHandler {
 
@@ -326,16 +327,16 @@ public class XMLScriptBuilder extends BaseBuilder {
 	/**
 	 * 解析<choose/> -- <when/> 相当于switch case，举例：
 	 * <choose>
-	 *     <when test="title != null">
-	 *       AND title like #{title}
-	 *     </when>
-	 *     <when test="author != null and author.name != null">
-	 *       AND author_name like #{author.name}
-	 *     </when>
-	 *     <otherwise>
-	 *       AND featured = 1
-	 *     </otherwise>
-	 *   </choose>
+	 * <when test="title != null">
+	 * AND title like #{title}
+	 * </when>
+	 * <when test="author != null and author.name != null">
+	 * AND author_name like #{author.name}
+	 * </when>
+	 * <otherwise>
+	 * AND featured = 1
+	 * </otherwise>
+	 * </choose>
 	 */
 	private class ChooseHandler implements NodeHandler {
 
@@ -355,7 +356,8 @@ public class XMLScriptBuilder extends BaseBuilder {
 
 		/**
 		 * 处理<when/> 和 <otherwise/>
-		 * @param chooseSqlNode  choose节点
+		 *
+		 * @param chooseSqlNode choose节点
 		 * @param ifSqlNodes when节点列表
 		 * @param defaultSqlNodes otherwise节点列表
 		 */
