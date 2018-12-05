@@ -1,17 +1,17 @@
 /**
- *    Copyright 2009-2018 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2018 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.builder.annotation;
 
@@ -31,14 +31,20 @@ import org.apache.ibatis.session.Configuration;
 /**
  * @author Clinton Begin
  * @author Kazuki Shimizu
+ * @ xxxProvider注解对应SqlSource实例
  */
 public class ProviderSqlSource implements SqlSource {
 
 	private final Configuration configuration;
+	//SqlSource构建器
 	private final SqlSourceBuilder sqlSourceParser;
+	//构建sql的provider构建类
 	private final Class<?> providerType;
+	//provider构建类中构建sql的具体方法
 	private Method providerMethod;
+	//构建方法的参数列表
 	private String[] providerMethodArgumentNames;
+	//构建方法参数列表对应的参数类型列表
 	private Class<?>[] providerMethodParameterTypes;
 	private ProviderContext providerContext;
 	private Integer providerContextIndex;
@@ -139,27 +145,42 @@ public class ProviderSqlSource implements SqlSource {
 
 	@Override
 	public BoundSql getBoundSql(Object parameterObject) {
+		//该类本身就是SqlSource，为什么还要创建一个SqlSource呢？
+		//因为，对于xml和annotation直接写sql的形式，这两种实在初始化时就已经将sql进行了部分解析
+		//但对于@xxxProvider这种形式，初始化时只会封装成ProviderSqlSource，而sql仍然封装在builder类中
+		//所以先要解析builder类中特定产生sql的方法，将sql解析出来封装成sql真正对应的SqlSource，才能
+		//和上面两种情况一样获得BoundSql
 		SqlSource sqlSource = createSqlSource(parameterObject);
 		return sqlSource.getBoundSql(parameterObject);
 	}
 
+	/**
+	 * 从@xxxProvider注解指向的真正产生sql构建类的方法中提取出sql，并封装成sql对应的SqlSource
+	 *
+	 * @param parameterObject 参数
+	 */
 	private SqlSource createSqlSource(Object parameterObject) {
 		try {
+			//除去ProviderContext作为参数的其他参数数量
 			int bindParameterCount =
 				providerMethodParameterTypes.length - (providerContext == null ? 0 : 1);
 			String sql;
 			if (providerMethodParameterTypes.length == 0) {
+				//没有参数直接拼装sql
 				sql = invokeProviderMethod();
 			} else if (bindParameterCount == 0) {
+				//参数为一个ProviderContext对象
 				sql = invokeProviderMethod(providerContext);
 			} else if (bindParameterCount == 1 &&
 				(parameterObject == null || providerMethodParameterTypes[
 					(providerContextIndex == null || providerContextIndex == 1) ? 0 : 1]
 					.isAssignableFrom(parameterObject.getClass()))) {
+				//存在一个非ProviderContext的参数
 				sql = invokeProviderMethod(extractProviderMethodArguments(parameterObject));
 			} else if (parameterObject instanceof Map) {
 				@SuppressWarnings("unchecked")
-				Map<String, Object> params = (Map<String, Object>) parameterObject;
+				//处理Map类型的参数
+					Map<String, Object> params = (Map<String, Object>) parameterObject;
 				sql = invokeProviderMethod(
 					extractProviderMethodArguments(params, providerMethodArgumentNames));
 			} else {
@@ -171,6 +192,7 @@ public class ProviderSqlSource implements SqlSource {
 			}
 			Class<?> parameterType =
 				parameterObject == null ? Object.class : parameterObject.getClass();
+			//解析sql中的${}后生成真正的SqlSource
 			return sqlSourceParser
 				.parse(replacePlaceholder(sql), parameterType, new HashMap<String, Object>());
 		} catch (BuilderException e) {
@@ -182,39 +204,64 @@ public class ProviderSqlSource implements SqlSource {
 		}
 	}
 
+	/**
+	 * 提取完整的参数数组
+	 */
 	private Object[] extractProviderMethodArguments(Object parameterObject) {
 		if (providerContext != null) {
+			//存在ProviderContext，将ProviderContext和普通参数区分开来
 			Object[] args = new Object[2];
 			args[providerContextIndex == 0 ? 1 : 0] = parameterObject;
 			args[providerContextIndex] = providerContext;
 			return args;
 		} else {
+			//直接转成参数数组返回
 			return new Object[]{parameterObject};
 		}
 	}
 
+	/**
+	 * 根据参数名-参数 映射和参数名数组，组合成正确顺序的参数数组
+	 *
+	 * @param params 参数名-参数映射
+	 * @param argumentNames 参数名数组
+	 */
 	private Object[] extractProviderMethodArguments(Map<String, Object> params,
 		String[] argumentNames) {
+		//参数数组的总长度
 		Object[] args = new Object[argumentNames.length];
 		for (int i = 0; i < args.length; i++) {
+			//ProviderContext参数需要单独判断
 			if (providerContextIndex != null && providerContextIndex == i) {
 				args[i] = providerContext;
 			} else {
+				//普通类型参数直接放
 				args[i] = params.get(argumentNames[i]);
 			}
 		}
 		return args;
 	}
 
+	/**
+	 * 调用sql构建类的构建方法得到sql
+	 *
+	 * @param args 方法参数
+	 */
 	private String invokeProviderMethod(Object... args) throws Exception {
 		Object targetObject = null;
 		if (!Modifier.isStatic(providerMethod.getModifiers())) {
+			//非静态创建构建类实例
 			targetObject = providerType.newInstance();
 		}
+		//生成sql
 		CharSequence sql = (CharSequence) providerMethod.invoke(targetObject, args);
+		//返回sql
 		return sql != null ? sql.toString() : null;
 	}
 
+	/**
+	 * 解析动态占位符${}
+	 */
 	private String replacePlaceholder(String sql) {
 		return PropertyParser.parse(sql, configuration.getVariables());
 	}

@@ -1,17 +1,17 @@
 /**
- *    Copyright 2009-2018 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2018 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.builder.annotation;
 
@@ -332,6 +332,7 @@ public class MapperAnnotationBuilder {
 
 	/**
 	 * 为@TypeDiscriminator创建ResultMap
+	 *
 	 * @param resultMapId 语句方法唯一标识
 	 * @param resultType 语句方法返回类型
 	 * @param discriminator 鉴别器对象
@@ -357,16 +358,16 @@ public class MapperAnnotationBuilder {
 
 	/**
 	 * 解析@TypeDiscriminator，举例
-	 * @ TypeDiscriminator(
-	 *       column = "draft",
-	 *       javaType = int.class,
-	 *       cases = {@Case(value = "1", type = DraftPost.class,
-	 *           results = {@Result(id = true, property = "id", column = "id")})}
-	 *   )
+	 *
 	 * @param resultMapId 语句方法的唯一标识
 	 * @param resultType 语句方法的返回值
 	 * @param discriminator @TypeDiscriminator标签对象
-	 * @return
+	 * @ TypeDiscriminator(
+	 * column = "draft",
+	 * javaType = int.class,
+	 * cases = {@Case(value = "1", type = DraftPost.class,
+	 * results = {@Result(id = true, property = "id", column = "id")})}
+	 * )
 	 */
 	private Discriminator applyDiscriminator(String resultMapId, Class<?> resultType,
 		TypeDiscriminator discriminator) {
@@ -380,8 +381,8 @@ public class MapperAnnotationBuilder {
 			JdbcType jdbcType =
 				discriminator.jdbcType() == JdbcType.UNDEFINED ? null : discriminator.jdbcType();
 			@SuppressWarnings("unchecked")
-				//处理结果的TypeHandler
-			Class<? extends TypeHandler<?>> typeHandler = (Class<? extends TypeHandler<?>>)
+			//处理结果的TypeHandler
+				Class<? extends TypeHandler<?>> typeHandler = (Class<? extends TypeHandler<?>>)
 				(discriminator.typeHandler() == UnknownTypeHandler.class ? null
 					: discriminator.typeHandler());
 			//@Case
@@ -683,7 +684,7 @@ public class MapperAnnotationBuilder {
 					.invoke(sqlAnnotation);
 				return buildSqlSourceFromStrings(strings, parameterType, languageDriver);
 			} else if (sqlProviderAnnotationType != null) {
-				//提供的是@Provider注解
+				//提供的是@xxxProvider注解
 				Annotation sqlProviderAnnotation = method.getAnnotation(sqlProviderAnnotationType);
 				//创建ProviderSqlSource
 				return new ProviderSqlSource(assistant.getConfiguration(), sqlProviderAnnotation,
@@ -766,6 +767,7 @@ public class MapperAnnotationBuilder {
 
 	/**
 	 * 解析@Results
+	 *
 	 * @param results @Results中的所有@Result
 	 * @param resultType 语句方法的返回类型
 	 * @param resultMappings 封装解析结果的集合
