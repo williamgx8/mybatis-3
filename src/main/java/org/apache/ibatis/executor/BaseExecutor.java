@@ -1,17 +1,17 @@
 /**
- *    Copyright 2009-2018 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2018 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.executor;
 
@@ -51,15 +51,20 @@ public abstract class BaseExecutor implements Executor {
 
 	private static final Log log = LogFactory.getLog(BaseExecutor.class);
 
+	//事务对象
 	protected Transaction transaction;
+	//包装的Executor
 	protected Executor wrapper;
-
+	//延迟加载队列
 	protected ConcurrentLinkedQueue<DeferredLoad> deferredLoads;
+	//一级缓存
 	protected PerpetualCache localCache;
+	//输出参数缓存
 	protected PerpetualCache localOutputParameterCache;
 	protected Configuration configuration;
-
+	//记录嵌套查询的层级
 	protected int queryStack;
+	//是否关闭
 	private boolean closed;
 
 	protected BaseExecutor(Configuration configuration, Transaction transaction) {
@@ -84,8 +89,10 @@ public abstract class BaseExecutor implements Executor {
 	public void close(boolean forceRollback) {
 		try {
 			try {
+				//根据forceRollback判断是否需要回滚
 				rollback(forceRollback);
 			} finally {
+				//关闭事务
 				if (transaction != null) {
 					transaction.close();
 				}
@@ -94,6 +101,7 @@ public abstract class BaseExecutor implements Executor {
 			// Ignore.  There's nothing that can be done at this point.
 			log.warn("Unexpected exception on closing transaction.  Cause: " + e);
 		} finally {
+			//GC helper
 			transaction = null;
 			deferredLoads = null;
 			localCache = null;
@@ -109,12 +117,17 @@ public abstract class BaseExecutor implements Executor {
 
 	@Override
 	public int update(MappedStatement ms, Object parameter) throws SQLException {
+		//ms.getResource是Mapper.xml的全路径
 		ErrorContext.instance().resource(ms.getResource()).activity("executing an update")
 			.object(ms.getId());
 		if (closed) {
+			//会话已关闭报错
 			throw new ExecutorException("Executor was closed.");
 		}
+		//按照缓存的套路来说，更新操作应该先更新db，然后缓存失效，但由于Mybatis的一级缓存是和每一次会话绑定的
+		//先更新缓存再更新db的缓存击穿和脏数据对其他请求没有影响，所以可以这么做
 		clearLocalCache();
+		//更新db
 		return doUpdate(ms, parameter);
 	}
 
@@ -219,6 +232,7 @@ public abstract class BaseExecutor implements Executor {
 		cacheKey.update(rowBounds.getLimit());
 		//添加原始的sql计算
 		cacheKey.update(boundSql.getSql());
+		//参数映射列表
 		List<ParameterMapping> parameterMappings = boundSql.getParameterMappings();
 		TypeHandlerRegistry typeHandlerRegistry = ms.getConfiguration().getTypeHandlerRegistry();
 		// mimic DefaultParameterHandler logic
@@ -248,6 +262,9 @@ public abstract class BaseExecutor implements Executor {
 		return cacheKey;
 	}
 
+	/**
+	 * 键为key的一级缓存是否存在
+	 */
 	@Override
 	public boolean isCached(MappedStatement ms, CacheKey key) {
 		return localCache.getObject(key) != null;
@@ -282,7 +299,9 @@ public abstract class BaseExecutor implements Executor {
 	@Override
 	public void clearLocalCache() {
 		if (!closed) {
+			//清除一级缓存
 			localCache.clear();
+			//清除输出参数缓存
 			localOutputParameterCache.clear();
 		}
 	}
