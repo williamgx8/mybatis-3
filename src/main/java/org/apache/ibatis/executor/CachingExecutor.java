@@ -42,7 +42,8 @@ public class CachingExecutor implements Executor {
 
 	//被包装的Executor
 	private final Executor delegate;
-	//创建二级缓存管理对象，支持事务
+	//创建二级缓存管理对象，支持事务，其中包含了事务缓存
+	//一个sqlSession和一个executor一一对应，一个executor中可能包含多个事务，这多个事务都由一个事务缓存管理器管理
 	private final TransactionalCacheManager tcm = new TransactionalCacheManager();
 
 	public CachingExecutor(Executor delegate) {
@@ -59,12 +60,15 @@ public class CachingExecutor implements Executor {
 	public void close(boolean forceRollback) {
 		try {
 			//issues #499, #524 and #573
+			//如果强制回滚回滚
 			if (forceRollback) {
 				tcm.rollback();
 			} else {
+				//否则提交
 				tcm.commit();
 			}
 		} finally {
+			//包装类关闭
 			delegate.close(forceRollback);
 		}
 	}
@@ -76,7 +80,9 @@ public class CachingExecutor implements Executor {
 
 	@Override
 	public int update(MappedStatement ms, Object parameterObject) throws SQLException {
+		//是否刷新事务缓存
 		flushCacheIfRequired(ms);
+		//委托更新
 		return delegate.update(ms, parameterObject);
 	}
 
@@ -103,6 +109,12 @@ public class CachingExecutor implements Executor {
 		Cache cache = ms.getCache();
 		if (cache != null) {
 			//是否清空事务缓存
+			/**
+			 * 为什么清空的是事务缓存，因为，二级缓存是多session共享的，试想一下，如果一个session没有commit，
+			 * 只是因为配置了<cache flushCache="true"/>就在每次操作前把二级缓存删了，那么这次session要是回滚
+			 * 二级缓存不就没法恢复了？即便不考虑这种情况，如果仅仅一个session的单一操作就要删除所有session共享
+			 * 的二级缓存，那二级缓存的使用率又能有多少呢？
+			 */
 			flushCacheIfRequired(ms);
 			if (ms.isUseCache() && resultHandler == null) {
 				//确保存储过程没有输出参数
@@ -114,7 +126,7 @@ public class CachingExecutor implements Executor {
 					//二级缓存没有才走BaseExecutor的query
 					list = delegate.<E>query(ms, parameterObject, rowBounds, resultHandler, key,
 						boundSql);
-					//放入二级缓存
+					//放入事务缓存
 					tcm.putObject(cache, key, list); // issue #578 and #116
 				}
 				return list;
@@ -131,16 +143,20 @@ public class CachingExecutor implements Executor {
 
 	@Override
 	public void commit(boolean required) throws SQLException {
+		//包装类执行提交
 		delegate.commit(required);
+		//事务管理提交，主要是让所有的事务缓存提交，此时如果设置了二级缓存刷新，才会真正清除二级缓存
 		tcm.commit();
 	}
 
 	@Override
 	public void rollback(boolean required) throws SQLException {
 		try {
+			//包装类回滚
 			delegate.rollback(required);
 		} finally {
 			if (required) {
+				//事务管理器回滚
 				tcm.rollback();
 			}
 		}

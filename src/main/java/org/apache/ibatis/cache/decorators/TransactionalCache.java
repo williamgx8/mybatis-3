@@ -99,7 +99,9 @@ public class TransactionalCache implements Cache {
 	}
 
 	public void commit() {
+		//提交是否需要清除缓存
 		if (clearOnCommit) {
+			//清除二级缓存
 			delegate.clear();
 		}
 		flushPendingEntries();
