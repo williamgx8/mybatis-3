@@ -146,8 +146,11 @@ public abstract class BaseExecutor implements Executor {
 	@Override
 	public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds,
 		ResultHandler resultHandler) throws SQLException {
+		//BoundSql对象
 		BoundSql boundSql = ms.getBoundSql(parameter);
+		//创建一级缓存
 		CacheKey key = createCacheKey(ms, parameter, rowBounds, boundSql);
+		//查询
 		return query(ms, parameter, rowBounds, resultHandler, key, boundSql);
 	}
 
@@ -155,12 +158,17 @@ public abstract class BaseExecutor implements Executor {
 	@Override
 	public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds,
 		ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
+		//异常上下文，每一个会话只有一个异常上下文（第一次创建后放在ThreadLocal中）,逐层记录
+		//当中间某一层出现异常，exception会向上抛出，在最上层取出异常上下文中内容，就可以知道哪一层什么参数导致了什么异常
 		ErrorContext.instance().resource(ms.getResource()).activity("executing a query")
 			.object(ms.getId());
 		if (closed) {
+			//会话已关闭报错
 			throw new ExecutorException("Executor was closed.");
 		}
+		//无嵌套查询且配置的缓存刷新
 		if (queryStack == 0 && ms.isFlushCacheRequired()) {
+			//清除缓存
 			clearLocalCache();
 		}
 		List<E> list;
@@ -169,6 +177,7 @@ public abstract class BaseExecutor implements Executor {
 			//先从一级缓存中获取
 			list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
 			if (list != null) {
+				//处理本地缓存（只针对Callable存储过程）
 				handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
 			} else {
 				//缓存获取失败查询DB
@@ -178,11 +187,14 @@ public abstract class BaseExecutor implements Executor {
 			queryStack--;
 		}
 		if (queryStack == 0) {
+			//处理延迟加载队列，进行加载
 			for (DeferredLoad deferredLoad : deferredLoads) {
 				deferredLoad.load();
 			}
 			// issue #601
+			//清空延迟加载队列
 			deferredLoads.clear();
+			//如果一级缓存作用域为一次查询语句，清除缓存，默认为会话session级别
 			if (configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) {
 				// issue #482
 				clearLocalCache();
@@ -194,7 +206,9 @@ public abstract class BaseExecutor implements Executor {
 	@Override
 	public <E> Cursor<E> queryCursor(MappedStatement ms, Object parameter, RowBounds rowBounds)
 		throws SQLException {
+		//创建BoundSql
 		BoundSql boundSql = ms.getBoundSql(parameter);
+		//查询
 		return doQueryCursor(ms, parameter, rowBounds, boundSql);
 	}
 
@@ -275,9 +289,12 @@ public abstract class BaseExecutor implements Executor {
 		if (closed) {
 			throw new ExecutorException("Cannot commit, transaction is already closed");
 		}
+		//清除一级缓存
 		clearLocalCache();
+		//刷入批处理
 		flushStatements();
 		if (required) {
+			//提交事务
 			transaction.commit();
 		}
 	}
@@ -286,10 +303,13 @@ public abstract class BaseExecutor implements Executor {
 	public void rollback(boolean required) throws SQLException {
 		if (!closed) {
 			try {
+				//清除一级缓存
 				clearLocalCache();
+				//刷入批处理
 				flushStatements(true);
 			} finally {
 				if (required) {
+					//回滚事务
 					transaction.rollback();
 				}
 			}
@@ -320,19 +340,8 @@ public abstract class BaseExecutor implements Executor {
 		RowBounds rowBounds, BoundSql boundSql)
 		throws SQLException;
 
-	protected void closeStatement(Statement statement) {
-		if (statement != null) {
-			try {
-				if (!statement.isClosed()) {
-					statement.close();
-				}
-			} catch (SQLException e) {
-				// ignore
-			}
-		}
-	}
-
 	/**
+	 * 设置事务超时时间
 	 * Apply a transaction timeout.
 	 *
 	 * @param statement a current statement
@@ -343,6 +352,22 @@ public abstract class BaseExecutor implements Executor {
 	protected void applyTransactionTimeout(Statement statement) throws SQLException {
 		StatementUtil.applyTransactionTimeout(statement, statement.getQueryTimeout(),
 			transaction.getTimeout());
+	}
+
+	/**
+	 * 关闭statement
+	 */
+	protected void closeStatement(Statement statement) {
+		if (statement != null) {
+			try {
+				if (!statement.isClosed()) {
+					//由具体的数据库驱动实现
+					statement.close();
+				}
+			} catch (SQLException e) {
+				// ignore
+			}
+		}
 	}
 
 	private void handleLocallyCachedOutputParameters(MappedStatement ms, CacheKey key,
@@ -366,7 +391,8 @@ public abstract class BaseExecutor implements Executor {
 	private <E> List<E> queryFromDatabase(MappedStatement ms, Object parameter, RowBounds rowBounds,
 		ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
 		List<E> list;
-		//往缓存中放一个占位符，目的？？？
+		//往缓存中放一个占位符，该标识会使得延迟加载不执行
+		//可以理解为一个锁，使得多个statement查询时只有一个statement能从数据库查询，其他不会击穿
 		localCache.putObject(key, EXECUTION_PLACEHOLDER);
 		try {
 			//执行数据库查询
@@ -378,14 +404,18 @@ public abstract class BaseExecutor implements Executor {
 		//把从数据库查询的值放入缓存
 		localCache.putObject(key, list);
 		if (ms.getStatementType() == StatementType.CALLABLE) {
+			//存储过程处理，不关心
 			localOutputParameterCache.putObject(key, parameter);
 		}
 		return list;
 	}
 
 	protected Connection getConnection(Log statementLog) throws SQLException {
+		//从当前事务中得到连接
 		Connection connection = transaction.getConnection();
+		//如果statement级别日志开始debug，将连接增强成带更多日志输出的连接，返回
 		if (statementLog.isDebugEnabled()) {
+			//动态代理返回增强的连接
 			return ConnectionLogger.newInstance(connection, statementLog, queryStack);
 		} else {
 			return connection;

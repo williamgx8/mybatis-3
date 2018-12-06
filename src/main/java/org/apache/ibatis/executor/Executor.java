@@ -57,6 +57,9 @@ public interface Executor {
 	<E> Cursor<E> queryCursor(MappedStatement ms, Object parameter, RowBounds rowBounds)
 		throws SQLException;
 
+	/**
+	 * 刷入批处理语句
+	 */
 	List<BatchResult> flushStatements() throws SQLException;
 
 	/**
