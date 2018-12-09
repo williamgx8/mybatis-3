@@ -152,7 +152,13 @@ public class TransactionalCache implements Cache {
 	}
 
 	private void unlockMissedEntries() {
-		//将本次事务提交前，其他事物提交了本次查询是null的key的这部分cache删除？
+		/**
+		 * 将本次事务提交前，其他事物提交了本次查询是null的key的这部分cache删除，为什么要有这个操作，为什么本来就在二级缓存中不存在的
+		 * key要再删除一次，其实答案在该方法的调用处rollback()，在回滚时检查missedInCache说明在同一个事务之前的操作中查到该key对应
+		 * 的二级缓存不存在，那么再回滚肯定要将本次事务中的操作都还原到事务开始的状态，那么事务开始时，key对应的cache就是不存在的，可能
+		 * 在本次事务中其他事物已经向二级缓存中塞入了key对应的数据，所以为了肯定回到本次事务初始的状态必须手动删除一次key对应的二级缓存
+		 */
+
 		for (Object entry : entriesMissedInCache) {
 			try {
 				delegate.removeObject(entry);
