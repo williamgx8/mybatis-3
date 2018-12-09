@@ -43,7 +43,9 @@ public final class MappedStatement {
 	private StatementType statementType;
 	private ResultSetType resultSetType;
 	private SqlSource sqlSource;
-	//对应当前语句标签的二级缓存对象
+	//对应当前语句标签的二级缓存对象，每一个Mapper.xml中都可以配置一个<cache/>
+	//表示对该Mapper.xml的namespace下公用一个二级缓存，这也可以说明二级缓存是
+	//跨session存在的
 	private Cache cache;
 	private ParameterMap parameterMap;
 	private List<ResultMap> resultMaps;

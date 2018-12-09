@@ -57,9 +57,11 @@ public abstract class BaseExecutor implements Executor {
 	protected Executor wrapper;
 	//延迟加载队列
 	protected ConcurrentLinkedQueue<DeferredLoad> deferredLoads;
-	//一级缓存
+	//一级缓存，固定为PerpetualCache，不像二级缓存可以配置缓存策略
+	//因为一级缓存的作用范围是session，而executor是和session绑定的
+	//所以localCache只能存在于Executor中
 	protected PerpetualCache localCache;
-	//输出参数缓存
+	//输出参数缓存，存储过程相关
 	protected PerpetualCache localOutputParameterCache;
 	protected Configuration configuration;
 	//记录嵌套查询的层级

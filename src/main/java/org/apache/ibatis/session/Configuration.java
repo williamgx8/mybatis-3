@@ -145,11 +145,12 @@ public class Configuration {
 	protected final TypeHandlerRegistry typeHandlerRegistry = new TypeHandlerRegistry();
 	protected final TypeAliasRegistry typeAliasRegistry = new TypeAliasRegistry();
 	protected final LanguageDriverRegistry languageRegistry = new LanguageDriverRegistry();
-
+	//保存所有语句标签和语句注解
 	protected final Map<String, MappedStatement> mappedStatements = new StrictMap<>(
 		"Mapped Statements collection");
 	//保存所有二级缓存
 	protected final Map<String, Cache> caches = new StrictMap<>("Caches collection");
+	//保存所有<resultMap/>
 	protected final Map<String, ResultMap> resultMaps = new StrictMap<>("Result Maps collection");
 	protected final Map<String, ParameterMap> parameterMaps = new StrictMap<>(
 		"Parameter Maps collection");
@@ -157,6 +158,7 @@ public class Configuration {
 		"Key Generators collection");
 
 	protected final Set<String> loadedResources = new HashSet<>();
+	//保存所有sql片段
 	protected final Map<String, XNode> sqlFragments = new StrictMap<>(
 		"XML fragments parsed from previous mappers");
 
@@ -597,7 +599,7 @@ public class Configuration {
 			executor = new SimpleExecutor(this, transaction);
 		}
 		if (cacheEnabled) {
-			//开启缓存将执行器包装成CachingExecutor
+			//开启二级缓存将执行器包装成CachingExecutor
 			executor = new CachingExecutor(executor);
 		}
 		//再用存在的插件包装一层

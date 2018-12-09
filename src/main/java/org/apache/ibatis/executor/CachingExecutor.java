@@ -40,7 +40,7 @@ import org.apache.ibatis.transaction.Transaction;
  */
 public class CachingExecutor implements Executor {
 
-	//被包装的Executor
+	//被包装的Executor，BaseExecutor的子类，一级缓存
 	private final Executor delegate;
 	//创建二级缓存管理对象，支持事务，其中包含了事务缓存
 	//一个sqlSession和一个executor一一对应，一个executor中可能包含多个事务，这多个事务都由一个事务缓存管理器管理
@@ -105,7 +105,7 @@ public class CachingExecutor implements Executor {
 	public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds,
 		ResultHandler resultHandler, CacheKey key, BoundSql boundSql)
 		throws SQLException {
-		//从MappedStatement中得到Cache对象，该Cache源头是根据namespace创建的，默认为PerpetualCache和LruCache
+		//从MappedStatement中得到二级缓存Cache对象，该Cache源头是根据namespace创建的，默认为PerpetualCache和LruCache
 		Cache cache = ms.getCache();
 		if (cache != null) {
 			//是否清空事务缓存
@@ -120,7 +120,9 @@ public class CachingExecutor implements Executor {
 				//确保存储过程没有输出参数
 				ensureNoOutParams(ms, boundSql);
 				@SuppressWarnings("unchecked")
-				//查询二级缓存，查询的是事务缓存但实际上就是二级缓存
+				//查询二级缓存，查询的是事务缓存但实际上就是二级缓存，从cache中取出key对应的内容
+					//因为二级缓存是对应Mapper.xml的，每一个语句标签对应一个二级缓存实体，cache
+					//中包含了很多二级缓存实体，找出对应key的那个
 					List<E> list = (List<E>) tcm.getObject(cache, key);
 				if (list == null) {
 					//二级缓存没有才走BaseExecutor的query
@@ -174,6 +176,9 @@ public class CachingExecutor implements Executor {
 		}
 	}
 
+	/**
+	 * 委派给被包装的BaseExecutor的子类创建cacheKey，从中可以推断，二级缓存和一级缓存使用同一个cache key
+	 */
 	@Override
 	public CacheKey createCacheKey(MappedStatement ms, Object parameterObject, RowBounds rowBounds,
 		BoundSql boundSql) {
@@ -204,7 +209,7 @@ public class CachingExecutor implements Executor {
 		Cache cache = ms.getCache();
 		//缓存不为空并且设置了刷新缓存(每次查询都将事务缓存清空)
 		if (cache != null && ms.isFlushCacheRequired()) {
-			//清空事务缓存，事务缓存是将二级缓存又进行了依次包装
+			//清空事务缓存，事务缓存是将二级缓存又进行了一次包装
 			tcm.clear(cache);
 		}
 	}
