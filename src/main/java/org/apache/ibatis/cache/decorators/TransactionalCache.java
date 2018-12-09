@@ -104,7 +104,9 @@ public class TransactionalCache implements Cache {
 			//清除二级缓存
 			delegate.clear();
 		}
+		//处理本次事务产生的和未命中的cache
 		flushPendingEntries();
+		//重置本次事务所有缓存信息
 		reset();
 	}
 
@@ -120,10 +122,14 @@ public class TransactionalCache implements Cache {
 	}
 
 	private void flushPendingEntries() {
+		//将本次事务新增的内容写入二级缓存
 		for (Map.Entry<Object, Object> entry : entriesToAddOnCommit.entrySet()) {
 			delegate.putObject(entry.getKey(), entry.getValue());
 		}
+		//本次事务未查询到的缓存放入二级缓存，值为null，不明白有什么意义
+		//如果在事务提交前另一个session已经向对应key中写入了内容，此时不就又置null了？
 		for (Object entry : entriesMissedInCache) {
+			//本次事务新增的排除
 			if (!entriesToAddOnCommit.containsKey(entry)) {
 				delegate.putObject(entry, null);
 			}
@@ -131,6 +137,7 @@ public class TransactionalCache implements Cache {
 	}
 
 	private void unlockMissedEntries() {
+		//将本次事务提交前，其他事物提交了本次查询是null的key的这部分cache删除？
 		for (Object entry : entriesMissedInCache) {
 			try {
 				delegate.removeObject(entry);

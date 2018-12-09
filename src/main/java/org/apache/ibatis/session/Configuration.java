@@ -582,19 +582,25 @@ public class Configuration {
 	}
 
 	public Executor newExecutor(Transaction transaction, ExecutorType executorType) {
+		//没有指定Executor类型就是Simple，为啥要写两次？
 		executorType = executorType == null ? defaultExecutorType : executorType;
 		executorType = executorType == null ? ExecutorType.SIMPLE : executorType;
 		Executor executor;
 		if (ExecutorType.BATCH == executorType) {
+			//批处理执行器
 			executor = new BatchExecutor(this, transaction);
 		} else if (ExecutorType.REUSE == executorType) {
+			//可重用执行器
 			executor = new ReuseExecutor(this, transaction);
 		} else {
+			//默认的simple执行器
 			executor = new SimpleExecutor(this, transaction);
 		}
 		if (cacheEnabled) {
+			//开启缓存将执行器包装成CachingExecutor
 			executor = new CachingExecutor(executor);
 		}
+		//再用存在的插件包装一层
 		executor = (Executor) interceptorChain.pluginAll(executor);
 		return executor;
 	}
