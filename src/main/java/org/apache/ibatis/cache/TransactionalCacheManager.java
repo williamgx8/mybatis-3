@@ -45,7 +45,7 @@ public class TransactionalCacheManager {
 	}
 
 	public void putObject(Cache cache, CacheKey key, Object value) {
-		//获取/创建
+		//获取/创建事务缓存对象，再放入映射中
 		getTransactionalCache(cache).putObject(key, value);
 	}
 
