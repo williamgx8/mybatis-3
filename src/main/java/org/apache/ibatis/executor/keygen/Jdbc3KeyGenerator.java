@@ -80,9 +80,10 @@ public class Jdbc3KeyGenerator implements KeyGenerator {
 				//获取唯一确定的参数
 				Object soleParam = getSoleParameter(parameter);
 				if (soleParam != null) {
-
+					//从rs中将生成的值放入soleParam的对应字段中
 					assignKeysToParam(configuration, rs, keyProperties, soleParam);
 				} else {
+					//从多个不同的参数中找到和待生成的字段相匹配的内容并赋值
 					assignKeysToOneOfParams(configuration, rs, keyProperties,
 						(Map<?, ?>) parameter);
 				}
@@ -102,10 +103,19 @@ public class Jdbc3KeyGenerator implements KeyGenerator {
 		}
 	}
 
+	/**
+	 * 在多个不同类型的参数中选择一个，以满足xxx.yy的表达式，从而选择出yy对应的值
+	 *
+	 * @param configuration 配置文件
+	 * @param rs 携带数据库驱动生成值的结果集
+	 * @param keyProperties 所有待生成字段表达式集合
+	 * @param paramMap 参数映射
+	 */
 	protected void assignKeysToOneOfParams(final Configuration configuration, ResultSet rs,
 		final String[] keyProperties,
 		Map<?, ?> paramMap) throws SQLException {
 		// Assuming 'keyProperty' includes the parameter name. e.g. 'param.id'.
+		//必须存在xx.yy的情况，因为多个参数需要以.之前的部分决定是哪个参数值的内容
 		int firstDot = keyProperties[0].indexOf('.');
 		if (firstDot == -1) {
 			throw new ExecutorException(
@@ -115,9 +125,13 @@ public class Jdbc3KeyGenerator implements KeyGenerator {
 					+ " and available parameters are "
 					+ paramMap.keySet());
 		}
+		//.前面的内容
 		String paramName = keyProperties[0].substring(0, firstDot);
 		Object param;
+		//对于不是普通对象、集合和数组的多种类型参数，实际类型为ParamMap，其实际是一个以每一个参数名为key，参数值为value的Map
+		//参数中存在
 		if (paramMap.containsKey(paramName)) {
+			//获得参数值
 			param = paramMap.get(paramName);
 		} else {
 			throw new ExecutorException("Could not find parameter '" + paramName + "'. "
@@ -127,10 +141,13 @@ public class Jdbc3KeyGenerator implements KeyGenerator {
 				+ paramMap.keySet());
 		}
 		// Remove param name from 'keyProperty' string. e.g. 'param.id' -> 'id'
+		//可能存在多种类型的待生成值
 		String[] modifiedKeyProperties = new String[keyProperties.length];
 		for (int i = 0; i < keyProperties.length; i++) {
+			//每一种都必须保证存在.，以及必须以已存在的参数名开头
 			if (keyProperties[i].charAt(firstDot) == '.' && keyProperties[i]
 				.startsWith(paramName)) {
+				//.后面真正要生成的字段名称，比如country.id中的id
 				modifiedKeyProperties[i] = keyProperties[i].substring(firstDot + 1);
 			} else {
 				throw new ExecutorException(
@@ -141,6 +158,7 @@ public class Jdbc3KeyGenerator implements KeyGenerator {
 						+ paramMap.keySet());
 			}
 		}
+		//设置生成的值
 		assignKeysToParam(configuration, rs, modifiedKeyProperties, param);
 	}
 
