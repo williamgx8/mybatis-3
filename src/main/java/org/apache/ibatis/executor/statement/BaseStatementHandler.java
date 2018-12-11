@@ -77,7 +77,7 @@ public abstract class BaseStatementHandler implements StatementHandler {
 		//创建参数处理器
 		this.parameterHandler = configuration
 			.newParameterHandler(mappedStatement, parameterObject, boundSql);
-		//结果及处理器
+		//结果集处理器
 		this.resultSetHandler = configuration
 			.newResultSetHandler(executor, mappedStatement, rowBounds, parameterHandler,
 				resultHandler, boundSql);
@@ -104,7 +104,7 @@ public abstract class BaseStatementHandler implements StatementHandler {
 		try {
 			//创建Statement
 			statement = instantiateStatement(connection);
-			//设置事务超时时间
+			//设置语句和事务超时时间
 			setStatementTimeout(statement, transactionTimeout);
 			//设置操作数据集大小
 			setFetchSize(statement);
@@ -124,6 +124,7 @@ public abstract class BaseStatementHandler implements StatementHandler {
 	protected void setStatementTimeout(Statement stmt, Integer transactionTimeout)
 		throws SQLException {
 		Integer queryTimeout = null;
+		//获得查询超时时间
 		if (mappedStatement.getTimeout() != null) {
 			queryTimeout = mappedStatement.getTimeout();
 		} else if (configuration.getDefaultStatementTimeout() != null) {
@@ -132,6 +133,7 @@ public abstract class BaseStatementHandler implements StatementHandler {
 		if (queryTimeout != null) {
 			stmt.setQueryTimeout(queryTimeout);
 		}
+		//应用查询超时和事务超时时间
 		StatementUtil.applyTransactionTimeout(stmt, queryTimeout, transactionTimeout);
 	}
 

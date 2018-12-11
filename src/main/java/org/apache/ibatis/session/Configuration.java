@@ -555,8 +555,10 @@ public class Configuration {
 
 	public ParameterHandler newParameterHandler(MappedStatement mappedStatement,
 		Object parameterObject, BoundSql boundSql) {
+		//根据语句标签驱动类型得到参数处理器，一般是DefaultParameterHandler
 		ParameterHandler parameterHandler = mappedStatement.getLang()
 			.createParameterHandler(mappedStatement, parameterObject, boundSql);
+		//应用插件
 		parameterHandler = (ParameterHandler) interceptorChain.pluginAll(parameterHandler);
 		return parameterHandler;
 	}
