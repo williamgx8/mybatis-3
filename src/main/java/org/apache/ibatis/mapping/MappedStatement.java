@@ -53,8 +53,11 @@ public final class MappedStatement {
 	private boolean useCache;
 	private boolean resultOrdered;
 	private SqlCommandType sqlCommandType;
+	//不同数据库驱动下的列生成器
 	private KeyGenerator keyGenerator;
+	//待生成的字段名  keyProperty="a,b"
 	private String[] keyProperties;
+	//待生成的列名  keyColumn="ID,NAME_FRED"
 	private String[] keyColumns;
 	private boolean hasNestedResultMaps;
 	private String databaseId;
