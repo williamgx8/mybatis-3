@@ -376,6 +376,7 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		if (resultMap.hasNestedResultMaps()) {
 			//确保不使用分页
 			ensureNoRowBounds();
+			//自定义ResultHandler不支持分页
 			checkResultHandler();
 			handleRowValuesForNestedResultMap(rsw, resultMap, resultHandler, rowBounds,
 				parentMapping);
@@ -398,6 +399,9 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		}
 	}
 
+	/**
+	 * 自定义resultHandler不支持分页
+	 */
 	protected void checkResultHandler() {
 		//resultOrdered属性：这个设置仅针对嵌套结果 select 语句适用：如果为 true，就是假设包含了嵌套结果集或是分组了，
 		// 这样的话当返回一个主结果行的时候，就不会发生有对前面结果集的引用的情况。这就使得在获取嵌套的结果集的时候不至于导致内存不够用
@@ -411,7 +415,9 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 	}
 
 	/**
-	 * 处理<resultMap/>没有嵌套的简单行值-结果集
+	 * 处理<resultMap/>没有嵌套的简单行值-结果集，mybatis自身实现的是逻辑分页，即通过代码逻辑的判断实现分页，
+	 * 每次都查出一定数量的结果(具体数量由自定义或者不同数据库厂商查询的fetch size决定)，用代码跳转到开始的记录，
+	 * 往下读取limit条
 	 *
 	 * @param rsw 结果集封装对象
 	 * @param resultMap resultMap
@@ -518,11 +524,16 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		return rowValue;
 	}
 
+	/**
+	 * 是否启用自动映射
+	 */
 	private boolean shouldApplyAutomaticMappings(ResultMap resultMap, boolean isNested) {
+		//如果当前<resultMap/>中配置了autoMapping属性，就用当前的配置
 		if (resultMap.getAutoMapping() != null) {
 			return resultMap.getAutoMapping();
 		} else {
 			if (isNested) {
+				//内嵌需要完全映射，默认PARTIAL
 				return AutoMappingBehavior.FULL == configuration.getAutoMappingBehavior();
 			} else {
 				return AutoMappingBehavior.NONE != configuration.getAutoMappingBehavior();
@@ -986,17 +997,25 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 	// DISCRIMINATOR
 	//
 
+	/**
+	 * 处理<resultMap/>内存在的<discriminator/>
+	 */
 	public ResultMap resolveDiscriminatedResultMap(ResultSet rs, ResultMap resultMap,
 		String columnPrefix) throws SQLException {
 		Set<String> pastDiscriminators = new HashSet<>();
 		Discriminator discriminator = resultMap.getDiscriminator();
 		while (discriminator != null) {
+			//<discriminator/>解析后对应的值
 			final Object value = getDiscriminatorValue(rs, discriminator, columnPrefix);
+			//选中的那个<case/>对应resultMap的id
 			final String discriminatedMapId = discriminator.getMapIdFor(String.valueOf(value));
 			if (configuration.hasResultMap(discriminatedMapId)) {
+				//存在对应的ResultMap
 				resultMap = configuration.getResultMap(discriminatedMapId);
 				Discriminator lastDiscriminator = discriminator;
+				//从resultMap中再获得一次
 				discriminator = resultMap.getDiscriminator();
+				//唯一一个，调出返回
 				if (discriminator == lastDiscriminator || !pastDiscriminators
 					.add(discriminatedMapId)) {
 					break;
@@ -1008,13 +1027,29 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		return resultMap;
 	}
 
+	/**
+	 * 获取<discriminator/>修饰的列的真实值
+	 *
+	 * @param rs 结果集
+	 * @param discriminator <discriminator/>对象
+	 * @param columnPrefix 列前缀
+	 */
 	private Object getDiscriminatorValue(ResultSet rs, Discriminator discriminator,
 		String columnPrefix) throws SQLException {
+		//<discriminator/>对应的RequestMapping对象
 		final ResultMapping resultMapping = discriminator.getResultMapping();
+		//<discriminator/>对应列的类型处理器
 		final TypeHandler<?> typeHandler = resultMapping.getTypeHandler();
+		//得到<discriminator/>列的值
 		return typeHandler.getResult(rs, prependPrefix(resultMapping.getColumn(), columnPrefix));
 	}
 
+	/**
+	 * 前缀加列名，任何一个为空都返回原始列名
+	 *
+	 * @param columnName 列名
+	 * @param prefix 前缀
+	 */
 	private String prependPrefix(String columnName, String prefix) {
 		if (columnName == null || columnName.length() == 0 || prefix == null
 			|| prefix.length() == 0) {
@@ -1027,15 +1062,26 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 	// HANDLE NESTED RESULT MAPS
 	//
 
+	/**
+	 * 处理ResultSet和ResultMap非一一映射的情况，<resultMap/>中存在嵌套的<resultMap/>
+	 *
+	 * @param rsw ResultSet包装对象
+	 * @param resultMap ResultMap
+	 * @param resultHandler 结果处理器
+	 * @param rowBounds 封装分页的对象
+	 * @param parentMapping 父ResultMapping
+	 */
 	private void handleRowValuesForNestedResultMap(ResultSetWrapper rsw, ResultMap resultMap,
 		ResultHandler<?> resultHandler, RowBounds rowBounds, ResultMapping parentMapping)
 		throws SQLException {
 		final DefaultResultContext<Object> resultContext = new DefaultResultContext<>();
 		ResultSet resultSet = rsw.getResultSet();
+		//跳到某行
 		skipRows(resultSet, rowBounds);
 		Object rowValue = previousRowValue;
 		while (shouldProcessMoreRows(resultContext, rowBounds) && !resultSet.isClosed() && resultSet
 			.next()) {
+			//<discriminator/>对应ResultMap对象
 			final ResultMap discriminatedResultMap = resolveDiscriminatedResultMap(resultSet,
 				resultMap, null);
 			final CacheKey rowKey = createRowKey(discriminatedResultMap, rsw, null);
@@ -1078,10 +1124,15 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 			ancestorObjects.remove(resultMapId);
 		} else {
 			final ResultLoaderMap lazyLoader = new ResultLoaderMap();
+			//获得一行映射的对象
 			rowValue = createResultObject(rsw, resultMap, lazyLoader, columnPrefix);
+			//存在列对象，但没有该对象的类型处理器，说明该对象不是常见类型的映射
 			if (rowValue != null && !hasTypeHandlerForResultObject(rsw, resultMap.getType())) {
+				//列对应对象元数据
 				final MetaObject metaObject = configuration.newMetaObject(rowValue);
+				//是否使用<constructor/>
 				boolean foundValues = this.useConstructorMappings;
+				//是否自动映射
 				if (shouldApplyAutomaticMappings(resultMap, true)) {
 					foundValues = applyAutomaticMappings(rsw, resultMap, metaObject, columnPrefix)
 						|| foundValues;
@@ -1348,11 +1399,20 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		return null;
 	}
 
+	/**
+	 * 根据结果集和结果类型判断是否存在对应的结果处理器
+	 *
+	 * @param rsw 结果集包装对象
+	 * @param resultType 结果类型
+	 */
 	private boolean hasTypeHandlerForResultObject(ResultSetWrapper rsw, Class<?> resultType) {
+		//单值，通过列名和结果类型共同得到类型处理器
 		if (rsw.getColumnNames().size() == 1) {
 			return typeHandlerRegistry
 				.hasTypeHandler(resultType, rsw.getJdbcType(rsw.getColumnNames().get(0)));
 		}
+		//复合类型，比如一个自定义对象，只能根据结果类型获取类型处理器
+		//一般来说TypeHandlerRegistry中初始化了常见的类型转换器，如果是自定义对象是没有对应的类型转换器的
 		return typeHandlerRegistry.hasTypeHandler(resultType);
 	}
 

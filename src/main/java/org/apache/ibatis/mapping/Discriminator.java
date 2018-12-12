@@ -1,17 +1,17 @@
 /**
- *    Copyright 2009-2015 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2015 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.mapping;
 
@@ -25,40 +25,45 @@ import org.apache.ibatis.session.Configuration;
  */
 public class Discriminator {
 
-  private ResultMapping resultMapping;
-  private Map<String, String> discriminatorMap;
+	//<discriminator/>标签对应的RequestMapping，包括该标签的一些属性等
+	private ResultMapping resultMapping;
+	//<discriminator/>内的每一个<case/>，key为case的value，value比较复杂，可能是某个<resultMap/>的id，也可能是@TypeDiscriminator所在方法全路径签名
+	private Map<String, String> discriminatorMap;
 
-  Discriminator() {
-  }
+	Discriminator() {
+	}
 
-  public static class Builder {
-    private Discriminator discriminator = new Discriminator();
+	public static class Builder {
 
-    public Builder(Configuration configuration, ResultMapping resultMapping, Map<String, String> discriminatorMap) {
-      discriminator.resultMapping = resultMapping;
-      discriminator.discriminatorMap = discriminatorMap;
-    }
+		private Discriminator discriminator = new Discriminator();
 
-    public Discriminator build() {
-      assert discriminator.resultMapping != null;
-      assert discriminator.discriminatorMap != null;
-      assert !discriminator.discriminatorMap.isEmpty();
-      //lock down map
-      discriminator.discriminatorMap = Collections.unmodifiableMap(discriminator.discriminatorMap);
-      return discriminator;
-    }
-  }
+		public Builder(Configuration configuration, ResultMapping resultMapping,
+			Map<String, String> discriminatorMap) {
+			discriminator.resultMapping = resultMapping;
+			discriminator.discriminatorMap = discriminatorMap;
+		}
 
-  public ResultMapping getResultMapping() {
-    return resultMapping;
-  }
+		public Discriminator build() {
+			assert discriminator.resultMapping != null;
+			assert discriminator.discriminatorMap != null;
+			assert !discriminator.discriminatorMap.isEmpty();
+			//lock down map
+			discriminator.discriminatorMap = Collections
+				.unmodifiableMap(discriminator.discriminatorMap);
+			return discriminator;
+		}
+	}
 
-  public Map<String, String> getDiscriminatorMap() {
-    return discriminatorMap;
-  }
+	public ResultMapping getResultMapping() {
+		return resultMapping;
+	}
 
-  public String getMapIdFor(String s) {
-    return discriminatorMap.get(s);
-  }
+	public Map<String, String> getDiscriminatorMap() {
+		return discriminatorMap;
+	}
+
+	public String getMapIdFor(String s) {
+		return discriminatorMap.get(s);
+	}
 
 }
