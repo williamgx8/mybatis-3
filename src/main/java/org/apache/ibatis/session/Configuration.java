@@ -106,8 +106,11 @@ public class Configuration {
 	protected boolean useGeneratedKeys;
 	protected boolean useColumnLabel = true;
 	protected boolean cacheEnabled = true;
+	//指定当结果集中值为 null 的时候是否调用映射对象的 setter（map 对象时为 put）方法，
+	//这对于有 Map.keySet() 依赖或 null 值初始化的时候是有用的。注意基本类型（int、boolean等）是不能设置成 null 的
 	protected boolean callSettersOnNulls;
 	protected boolean useActualParamName = true;
+	//当返回行的所有列都是空时，MyBatis默认返回null。 当开启这个设置时，MyBatis会返回一个空实例，同样适用于嵌套属性
 	protected boolean returnInstanceForEmptyRow;
 
 	protected String logPrefix;
