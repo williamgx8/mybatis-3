@@ -100,6 +100,7 @@ public class Configuration {
 
 	protected boolean safeRowBoundsEnabled;
 	protected boolean safeResultHandlerEnabled = true;
+	//是否开启自动驼峰命名规则（camel case）映射，即从经典数据库列名 A_COLUMN 到经典 Java 属性名 aColumn 的类似映射
 	protected boolean mapUnderscoreToCamelCase;
 	protected boolean aggressiveLazyLoading;
 	protected boolean multipleResultSetsEnabled = true;

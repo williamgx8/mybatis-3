@@ -630,46 +630,62 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 	private List<UnMappedColumnAutoMapping> createAutomaticMappings(ResultSetWrapper rsw,
 		ResultMap resultMap, MetaObject metaObject, String columnPrefix) throws SQLException {
 		final String mapKey = resultMap.getId() + ":" + columnPrefix;
+		//自动映射缓存中是否已经存在mapKey对应的所有映射关系
 		List<UnMappedColumnAutoMapping> autoMapping = autoMappingsCache.get(mapKey);
 		if (autoMapping == null) {
+			//不存在从零开始创建
 			autoMapping = new ArrayList<>();
+			//没映射列的集合
 			final List<String> unmappedColumnNames = rsw
 				.getUnmappedColumnNames(resultMap, columnPrefix);
+			//遍历每一个未映射列
 			for (String columnName : unmappedColumnNames) {
 				String propertyName = columnName;
+				//存在前缀
 				if (columnPrefix != null && !columnPrefix.isEmpty()) {
 					// When columnPrefix is specified,
 					// ignore columns without the prefix.
+					//如果以前缀开始，去掉前缀才能真正和嵌套列名对应
 					if (columnName.toUpperCase(Locale.ENGLISH).startsWith(columnPrefix)) {
 						propertyName = columnName.substring(columnPrefix.length());
 					} else {
 						continue;
 					}
 				}
+				//根据列名按照驼峰规范转成可能对应的类的属性名
 				final String property = metaObject
 					.findProperty(propertyName, configuration.isMapUnderscoreToCamelCase());
+				//属性名存在对应的setter方法
 				if (property != null && metaObject.hasSetter(property)) {
+					//该属性如果已经有过映射记录了，直接返回
 					if (resultMap.getMappedProperties().contains(property)) {
 						continue;
 					}
+					//属性setter接受类型
 					final Class<?> propertyType = metaObject.getSetterType(property);
+					//存在列-属性值的类型处理器
 					if (typeHandlerRegistry
 						.hasTypeHandler(propertyType, rsw.getJdbcType(columnName))) {
+						//获得类型处理器
 						final TypeHandler<?> typeHandler = rsw
 							.getTypeHandler(propertyType, columnName);
+						//记录到未映射缓存列表
 						autoMapping.add(
 							new UnMappedColumnAutoMapping(columnName, property, typeHandler,
 								propertyType.isPrimitive()));
 					} else {
+						//无类型处理器，获取AutoMappingUnknownColumnBehavior其中的一种类型做处理，默认为NONE，不作处理
 						configuration.getAutoMappingUnknownColumnBehavior()
 							.doAction(mappedStatement, columnName, property, propertyType);
 					}
 				} else {
+					//同样获取AutoMappingUnknownColumnBehavior其中的一种类型做处理，默认为NONE，不作处理
 					configuration.getAutoMappingUnknownColumnBehavior()
 						.doAction(mappedStatement, columnName,
 							(property != null) ? property : propertyName, null);
 				}
 			}
+			//将自动映射列表放入缓存
 			autoMappingsCache.put(mapKey, autoMapping);
 		}
 		return autoMapping;
@@ -992,14 +1008,24 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		return null;
 	}
 
+	/**
+	 * 根据构造器每一个参数和每一列jdbcType决定是否可以通过构造器的筛选进行自动映射
+	 *
+	 * @param constructor 构造器
+	 * @param jdbcTypes jdbcType列表
+	 */
 	private boolean allowedConstructorUsingTypeHandlers(final Constructor<?> constructor,
 		final List<JdbcType> jdbcTypes) {
+		//构造器参数类型列表
 		final Class<?>[] parameterTypes = constructor.getParameterTypes();
+		//参数数量必须和列的数量一致
 		if (parameterTypes.length != jdbcTypes.size()) {
 			return false;
 		}
 		for (int i = 0; i < parameterTypes.length; i++) {
+			//尝试每一列是否都有对应的类型处理器
 			if (!typeHandlerRegistry.hasTypeHandler(parameterTypes[i], jdbcTypes.get(i))) {
+				//任何一列没有都无法映射
 				return false;
 			}
 		}
@@ -1059,22 +1085,38 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 	// NESTED QUERY
 	//
 
+	/**
+	 * 结果集通过<constructor/>的封装获得，但是<constructor/>中存在某一属性需要通过再查询另外的语句得到
+	 *
+	 * @param rs 结果集
+	 * @param constructorMapping <constructor/>中那有select属性的一对映射，select对应一条查询语句
+	 * @param columnPrefix 列前缀
+	 */
 	private Object getNestedQueryConstructorValue(ResultSet rs, ResultMapping constructorMapping,
 		String columnPrefix) throws SQLException {
+		//select对应查询语句标签id
 		final String nestedQueryId = constructorMapping.getNestedQueryId();
+		//查询语句对应的MappedStatement
 		final MappedStatement nestedQuery = configuration.getMappedStatement(nestedQueryId);
+		//查询语句的参数类型
 		final Class<?> nestedQueryParameterType = nestedQuery.getParameterMap().getType();
+		//获得参数的值
 		final Object nestedQueryParameterObject = prepareParameterForNestedQuery(rs,
 			constructorMapping, nestedQueryParameterType, columnPrefix);
 		Object value = null;
 		if (nestedQueryParameterObject != null) {
+			//内嵌语句的BoundSql
 			final BoundSql nestedBoundSql = nestedQuery.getBoundSql(nestedQueryParameterObject);
+			//创建缓存key
 			final CacheKey key = executor
 				.createCacheKey(nestedQuery, nestedQueryParameterObject, RowBounds.DEFAULT,
 					nestedBoundSql);
+			//内嵌语句对应的javaType
 			final Class<?> targetType = constructorMapping.getJavaType();
+			//延迟加载器
 			final ResultLoader resultLoader = new ResultLoader(configuration, executor, nestedQuery,
 				nestedQueryParameterObject, targetType, key, nestedBoundSql);
+			//加载嵌套语句执行的值
 			value = resultLoader.loadResult();
 		}
 		return value;
@@ -1113,11 +1155,21 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		return value;
 	}
 
+	/**
+	 * 获取嵌套resultMap或者语句标签的值
+	 *
+	 * @param rs 结果集
+	 * @param resultMapping 内嵌标签的ResultMapping
+	 * @param parameterType 嵌套的语句标签可能需要一些参数，参数的类型
+	 * @param columnPrefix 列前缀
+	 */
 	private Object prepareParameterForNestedQuery(ResultSet rs, ResultMapping resultMapping,
 		Class<?> parameterType, String columnPrefix) throws SQLException {
 		if (resultMapping.isCompositeResult()) {
+			//处理多列
 			return prepareCompositeKeyParameter(rs, resultMapping, parameterType, columnPrefix);
 		} else {
+			//单列
 			return prepareSimpleKeyParameter(rs, resultMapping, parameterType, columnPrefix);
 		}
 	}
@@ -1126,25 +1178,35 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		Class<?> parameterType, String columnPrefix) throws SQLException {
 		final TypeHandler<?> typeHandler;
 		if (typeHandlerRegistry.hasTypeHandler(parameterType)) {
+			//内嵌列是简单类型，直接获取类型处理器
 			typeHandler = typeHandlerRegistry.getTypeHandler(parameterType);
 		} else {
+			//未知类型处理器
 			typeHandler = typeHandlerRegistry.getUnknownTypeHandler();
 		}
+		//解析出嵌套列的值
 		return typeHandler.getResult(rs, prependPrefix(resultMapping.getColumn(), columnPrefix));
 	}
 
 	private Object prepareCompositeKeyParameter(ResultSet rs, ResultMapping resultMapping,
 		Class<?> parameterType, String columnPrefix) throws SQLException {
+		//根据参数类型创建一个空的总参数对象
 		final Object parameterObject = instantiateParameterObject(parameterType);
+		//空参数对象的元对象，为了解析操作方便
 		final MetaObject metaObject = configuration.newMetaObject(parameterObject);
 		boolean foundValues = false;
+		//组合列，遍历每一个列的映射
 		for (ResultMapping innerResultMapping : resultMapping.getComposites()) {
+			//总参数对象中对应其中一个参数的setter接受的java类型
 			final Class<?> propType = metaObject.getSetterType(innerResultMapping.getProperty());
+			//对应的类型处理器
 			final TypeHandler<?> typeHandler = typeHandlerRegistry.getTypeHandler(propType);
+			//解析出对象值
 			final Object propValue = typeHandler
 				.getResult(rs, prependPrefix(innerResultMapping.getColumn(), columnPrefix));
 			// issue #353 & #560 do not execute nested query if key is null
 			if (propValue != null) {
+				//对象值存在就调用总参数对象元数据塞入该值
 				metaObject.setValue(innerResultMapping.getProperty(), propValue);
 				foundValues = true;
 			}
@@ -1152,6 +1214,9 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		return foundValues ? parameterObject : null;
 	}
 
+	/**
+	 * 创建参数类型的空对象
+	 */
 	private Object instantiateParameterObject(Class<?> parameterType) {
 		if (parameterType == null) {
 			return new HashMap<>();
