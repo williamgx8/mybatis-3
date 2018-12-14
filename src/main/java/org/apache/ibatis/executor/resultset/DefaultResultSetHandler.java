@@ -456,9 +456,11 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 	private void storeObject(ResultHandler<?> resultHandler,
 		DefaultResultContext<Object> resultContext, Object rowValue, ResultMapping parentMapping,
 		ResultSet rs) throws SQLException {
+		//存储过程不考虑
 		if (parentMapping != null) {
 			linkToParents(rs, parentMapping, rowValue);
 		} else {
+			//每获得一行数据resultContext中结果数量加一，并往resultHandler中的集合结果放一次
 			callResultHandler(resultHandler, resultContext, rowValue);
 		}
 	}
@@ -466,7 +468,9 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 	@SuppressWarnings("unchecked" /* because ResultHandler<?> is always ResultHandler<Object>*/)
 	private void callResultHandler(ResultHandler<?> resultHandler,
 		DefaultResultContext<Object> resultContext, Object rowValue) {
+		//结果数量加一
 		resultContext.nextResultObject(rowValue);
+		//往ResultHandler中放一个
 		((ResultHandler<Object>) resultHandler).handleResult(resultContext);
 	}
 
@@ -611,18 +615,40 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		return foundValues;
 	}
 
+	/**
+	 * 获取propertyMapping对应映射标签的值，比如：
+	 * <resultMap id="blogWithPosts" type="Blog">
+	 * <id property="id" column="id"/>
+	 * <result property="title" column="title"/>
+	 * <association property="author" column="author_id"
+	 * select="selectAuthorWithInlineParams"/>
+	 * <collection property="posts" column="id" select="selectPostsForBlog"/>
+	 * </resultMap>
+	 * 中的<association/>包含的select属性，需要查询id为selectPostsForBlog的<select/>执行的结果
+	 *
+	 * @param rs 结果集
+	 * @param metaResultObject 结果集元数据
+	 * @param propertyMapping 对应结果集
+	 * @param lazyLoader 懒加载器
+	 * @param columnPrefix 列前缀
+	 */
 	private Object getPropertyMappingValue(ResultSet rs, MetaObject metaResultObject,
 		ResultMapping propertyMapping, ResultLoaderMap lazyLoader, String columnPrefix)
 		throws SQLException {
+		//列值对应另外一个select语句的结果，嵌套
 		if (propertyMapping.getNestedQueryId() != null) {
+			//执行select对应语句获取列值
 			return getNestedQueryMappingValue(rs, metaResultObject, propertyMapping, lazyLoader,
 				columnPrefix);
 		} else if (propertyMapping.getResultSet() != null) {
+			//存储过程相关不考虑
 			addPendingChildRelation(rs, metaResultObject, propertyMapping);   // TODO is that OK?
 			return DEFERED;
 		} else {
+			//简单值，获取列对应的类型处理器
 			final TypeHandler<?> typeHandler = propertyMapping.getTypeHandler();
 			final String column = prependPrefix(propertyMapping.getColumn(), columnPrefix);
+			//得到列值
 			return typeHandler.getResult(rs, column);
 		}
 	}
@@ -1122,32 +1148,50 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		return value;
 	}
 
+	/**
+	 * 获取<resultMap/>中某列<association/>中存在select需要通过额外依次查询才能获取到值
+	 */
 	private Object getNestedQueryMappingValue(ResultSet rs, MetaObject metaResultObject,
 		ResultMapping propertyMapping, ResultLoaderMap lazyLoader, String columnPrefix)
 		throws SQLException {
+		//执行另一个查询语句的id
 		final String nestedQueryId = propertyMapping.getNestedQueryId();
+		//嵌套结果要映射成的字段名
 		final String property = propertyMapping.getProperty();
+		//查询语句的MappedStatement
 		final MappedStatement nestedQuery = configuration.getMappedStatement(nestedQueryId);
+		//查询语句需要的参数类型
 		final Class<?> nestedQueryParameterType = nestedQuery.getParameterMap().getType();
+		//得到参数值
 		final Object nestedQueryParameterObject = prepareParameterForNestedQuery(rs,
 			propertyMapping, nestedQueryParameterType, columnPrefix);
 		Object value = null;
 		if (nestedQueryParameterObject != null) {
+			//根据参数值准备好完整的sql
 			final BoundSql nestedBoundSql = nestedQuery.getBoundSql(nestedQueryParameterObject);
+			//创建语句对应的缓存键
 			final CacheKey key = executor
 				.createCacheKey(nestedQuery, nestedQueryParameterObject, RowBounds.DEFAULT,
 					nestedBoundSql);
+			//嵌套查询结果对应的java类型
 			final Class<?> targetType = propertyMapping.getJavaType();
+			//缓存中已存在
 			if (executor.isCached(nestedQuery, key)) {
+				//从缓存中取出，塞入metaResultObject中
 				executor.deferLoad(nestedQuery, metaResultObject, property, key, targetType);
 				value = DEFERED;
 			} else {
+				//创建延迟加载对象
 				final ResultLoader resultLoader = new ResultLoader(configuration, executor,
 					nestedQuery, nestedQueryParameterObject, targetType, key, nestedBoundSql);
+				//使用延迟加载
 				if (propertyMapping.isLazy()) {
+					//记录有关本次查询的延迟加载对象
 					lazyLoader.addLoader(property, metaResultObject, resultLoader);
+					//返回空对象
 					value = DEFERED;
 				} else {
+					//不延迟加载，直接查询结果
 					value = resultLoader.loadResult();
 				}
 			}
