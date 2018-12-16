@@ -51,6 +51,9 @@ public final class MappedStatement {
 	private List<ResultMap> resultMaps;
 	private boolean flushCacheRequired;
 	private boolean useCache;
+	//这个设置仅针对嵌套结果 select 语句适用：如果为 true，就是假设包含了嵌套结果集或是分组了，
+	// 这样的话当返回一个主结果行的时候，就不会发生有对前面结果集的引用的情况。
+	// 这就使得在获取嵌套的结果集的时候不至于导致内存不够用。默认值：false
 	private boolean resultOrdered;
 	private SqlCommandType sqlCommandType;
 	//不同数据库驱动下的列生成器

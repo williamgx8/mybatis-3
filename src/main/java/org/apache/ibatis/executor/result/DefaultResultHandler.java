@@ -38,8 +38,12 @@ public class DefaultResultHandler implements ResultHandler<Object> {
 		list = objectFactory.create(List.class);
 	}
 
+	/**
+	 * 处理当前结果
+	 */
 	@Override
 	public void handleResult(ResultContext<? extends Object> context) {
+		//从ResultContext中得到当前结果，放入总结果集中
 		list.add(context.getResultObject());
 	}
 

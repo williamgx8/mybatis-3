@@ -84,7 +84,9 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 	private final ReflectorFactory reflectorFactory;
 
 	// nested resultmaps
+	//保存一对多关系的多方
 	private final Map<CacheKey, Object> nestedResultObjects = new HashMap<>();
+	//保存一对多关系的一方，key为父<resultMap/>的id
 	private final Map<String, Object> ancestorObjects = new HashMap<>();
 	private Object previousRowValue;
 
@@ -372,7 +374,17 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 	public void handleRowValues(ResultSetWrapper rsw, ResultMap resultMap,
 		ResultHandler<?> resultHandler, RowBounds rowBounds, ResultMapping parentMapping)
 		throws SQLException {
-		//处理嵌套resultMap
+		/**
+		 * 处理嵌套resultMap，比如：
+		 * <resultMap id="blogUsingConstructorWithResultMapAndProperties" type="Blog">
+		 *         <constructor>
+		 *             <idArg column="id" javaType="_int"/>
+		 *             <arg column="title" javaType="java.lang.String"/>
+		 *             <arg javaType="org.apache.ibatis.domain.blog.Author" resultMap="org.apache.ibatis.binding.BoundAuthorMapper.authorResultMapWithProperties"/>
+		 *             <arg column="id" javaType="java.util.List" select="selectPostsForBlog"/>
+		 *         </constructor>
+		 *     </resultMap>
+		 */
 		if (resultMap.hasNestedResultMaps()) {
 			//确保不使用分页
 			ensureNoRowBounds();
@@ -1149,7 +1161,7 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 	}
 
 	/**
-	 * 获取<resultMap/>中某列<association/>中存在select需要通过额外依次查询才能获取到值
+	 * 获取<resultMap/>中某列存在select需要通过额外依次查询才能获取到值
 	 */
 	private Object getNestedQueryMappingValue(ResultSet rs, MetaObject metaResultObject,
 		ResultMapping propertyMapping, ResultLoaderMap lazyLoader, String columnPrefix)
@@ -1359,12 +1371,14 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 		Object rowValue = previousRowValue;
 		while (shouldProcessMoreRows(resultContext, rowBounds) && !resultSet.isClosed() && resultSet
 			.next()) {
-			//<discriminator/>对应ResultMap对象
+			//<discriminator/>对应ResultMap对象，如果不存在discriminator返回原始的resultMap
 			final ResultMap discriminatedResultMap = resolveDiscriminatedResultMap(resultSet,
 				resultMap, null);
+			//生成总<resultMap/>对应的缓存key
 			final CacheKey rowKey = createRowKey(discriminatedResultMap, rsw, null);
 			Object partialObject = nestedResultObjects.get(rowKey);
 			// issue #577 && #542
+			// 主结果中已经包含嵌套结果集了
 			if (mappedStatement.isResultOrdered()) {
 				if (partialObject == null && rowValue != null) {
 					nestedResultObjects.clear();
@@ -1372,6 +1386,8 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 				}
 				rowValue = getRowValue(rsw, discriminatedResultMap, rowKey, null, partialObject);
 			} else {
+				//嵌套内容为resultMap属性得到
+				//获得包含嵌套属性的总的一列对象
 				rowValue = getRowValue(rsw, discriminatedResultMap, rowKey, null, partialObject);
 				if (partialObject == null) {
 					storeObject(resultHandler, resultContext, rowValue, parentMapping, resultSet);

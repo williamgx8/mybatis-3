@@ -43,9 +43,17 @@ public class ResultMapping {
 	// 类型处理器，对应元素的typeHandler属性
 	private TypeHandler<?> typeHandler;
 
-	// 对应元素的resultMap属性应用名称空间后的结果
+	/**
+	 * 当前resultMapping对应标签的结果可能需要另一个resultMap得到，
+	 * 此时嵌套resultMap会立即得到结果，并封装到主resultMap列对应的字段中
+	 */
 	private String nestedResultMapId;
-	// 对应元素的select属性应用名称空间后的结果
+	/**
+	 * 当前resultMapping对应标签的结果可能对应select属性，该属性指向另一条
+	 * 查询语句，需要再调用一次查询才能获得该列的值，nestedQueryId一般对应
+	 * 另一条查询语句的<select id=""/>中的id，如果开启了延迟加载，该值在
+	 * 查询其他主属性时并不会立即查询，当使用该列值时才会真正触发查询动作
+	 */
 	private String nestedQueryId;
 	// 对应元素的notNullColumn属性拆分后的结果
 	private Set<String> notNullColumns;
