@@ -217,14 +217,19 @@ public abstract class BaseExecutor implements Executor {
 	@Override
 	public void deferLoad(MappedStatement ms, MetaObject resultObject, String property,
 		CacheKey key, Class<?> targetType) {
+		//session已经关闭了，报错
 		if (closed) {
 			throw new ExecutorException("Executor was closed.");
 		}
+		//延迟加载resultObject中property属性
 		DeferredLoad deferredLoad = new DeferredLoad(resultObject, property, key, localCache,
 			configuration, targetType);
+		//缓存中是否存在
 		if (deferredLoad.canLoad()) {
+			//从缓存中获取
 			deferredLoad.load();
 		} else {
+			//缓存中不存在放入延迟加载队列中
 			deferredLoads.add(
 				new DeferredLoad(resultObject, property, key, localCache, configuration,
 					targetType));

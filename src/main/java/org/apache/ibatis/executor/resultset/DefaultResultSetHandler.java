@@ -1189,11 +1189,11 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 			final Class<?> targetType = propertyMapping.getJavaType();
 			//缓存中已存在
 			if (executor.isCached(nestedQuery, key)) {
-				//从缓存中取出，塞入metaResultObject中
+				//从缓存中取出，塞入metaResultObject中，缓存中没有塞入延迟加载队列中
 				executor.deferLoad(nestedQuery, metaResultObject, property, key, targetType);
 				value = DEFERED;
 			} else {
-				//创建延迟加载对象
+				//创建延迟加载加载器
 				final ResultLoader resultLoader = new ResultLoader(configuration, executor,
 					nestedQuery, nestedQueryParameterObject, targetType, key, nestedBoundSql);
 				//使用延迟加载
@@ -1374,7 +1374,7 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 			//<discriminator/>对应ResultMap对象，如果不存在discriminator返回原始的resultMap
 			final ResultMap discriminatedResultMap = resolveDiscriminatedResultMap(resultSet,
 				resultMap, null);
-			//生成总<resultMap/>对应的缓存key
+			//生成放入nestResultObjects中的key
 			final CacheKey rowKey = createRowKey(discriminatedResultMap, rsw, null);
 			Object partialObject = nestedResultObjects.get(rowKey);
 			// issue #577 && #542
