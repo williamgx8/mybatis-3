@@ -102,6 +102,7 @@ public class Configuration {
 	protected boolean safeResultHandlerEnabled = true;
 	//是否开启自动驼峰命名规则（camel case）映射，即从经典数据库列名 A_COLUMN 到经典 Java 属性名 aColumn 的类似映射
 	protected boolean mapUnderscoreToCamelCase;
+	//当开启时，任何方法的调用都会加载该对象的所有属性。否则，每个属性会按需加载，只能立即加载的立即加载，能延迟加载的就延迟加载
 	protected boolean aggressiveLazyLoading;
 	protected boolean multipleResultSetsEnabled = true;
 	protected boolean useGeneratedKeys;
@@ -119,6 +120,7 @@ public class Configuration {
 	protected Class<? extends VFS> vfsImpl;
 	protected LocalCacheScope localCacheScope = LocalCacheScope.SESSION;
 	protected JdbcType jdbcTypeForNull = JdbcType.OTHER;
+	//指定哪些对象的方法触发一次延迟加载
 	protected Set<String> lazyLoadTriggerMethods = new HashSet<>(
 		Arrays.asList("equals", "clone", "hashCode", "toString"));
 	protected Integer defaultStatementTimeout;
