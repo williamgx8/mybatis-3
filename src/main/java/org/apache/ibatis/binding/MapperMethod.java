@@ -1,17 +1,17 @@
 /**
- *    Copyright 2009-2018 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2018 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.binding;
 
@@ -53,6 +53,12 @@ public class MapperMethod {
 		this.method = new MethodSignature(config, mapperInterface, method);
 	}
 
+	/**
+	 * 使用SqlSession并根据语句类型执行sql
+	 *
+	 * @param sqlSession SqlSession
+	 * @param args sql语句的参数值数组
+	 */
 	public Object execute(SqlSession sqlSession, Object[] args) {
 		Object result;
 		switch (command.getType()) {
@@ -64,12 +70,16 @@ public class MapperMethod {
 				break;
 			}
 			case UPDATE: {
+				//转换参数
 				Object param = method.convertArgsToSqlCommandParam(args);
+				//执行更新，返回影响的行数
 				result = rowCountResult(sqlSession.update(command.getName(), param));
 				break;
 			}
 			case DELETE: {
+				//转换参数
 				Object param = method.convertArgsToSqlCommandParam(args);
+				//执行更新，返回影响的行数
 				result = rowCountResult(sqlSession.delete(command.getName(), param));
 				break;
 			}
@@ -138,38 +148,58 @@ public class MapperMethod {
 		return result;
 	}
 
+	/**
+	 * 如果方法参数有一个为ResultHandler，说明该sql执行的结果需要通过这个ResultHandler参数进行处理
+	 */
 	private void executeWithResultHandler(SqlSession sqlSession, Object[] args) {
+		//根据Mapper唯一标示找对对应的MappedStatement
 		MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(command.getName());
+		//存储过程相关
 		if (!StatementType.CALLABLE.equals(ms.getStatementType())
 			&& void.class.equals(ms.getResultMaps().get(0).getType())) {
 			throw new BindingException("method " + command.getName()
 				+ " needs either a @ResultMap annotation, a @ResultType annotation,"
 				+ " or a resultType attribute in XML so a ResultHandler can be used as a parameter.");
 		}
+		//转换参数为一个值
 		Object param = method.convertArgsToSqlCommandParam(args);
 		if (method.hasRowBounds()) {
+			//如果存在RowBounds类型的参数取出来
 			RowBounds rowBounds = method.extractRowBounds(args);
+			//执行select
 			sqlSession
 				.select(command.getName(), param, rowBounds, method.extractResultHandler(args));
 		} else {
+			//执行select
 			sqlSession.select(command.getName(), param, method.extractResultHandler(args));
 		}
 	}
 
+	/**
+	 * 执行返回值为多条数据的sql
+	 */
 	private <E> Object executeForMany(SqlSession sqlSession, Object[] args) {
 		List<E> result;
+		//转换参数
 		Object param = method.convertArgsToSqlCommandParam(args);
 		if (method.hasRowBounds()) {
+			//存在分页对象取出
 			RowBounds rowBounds = method.extractRowBounds(args);
+			//执行selectList
 			result = sqlSession.<E>selectList(command.getName(), param, rowBounds);
 		} else {
+			//执行selectList
 			result = sqlSession.<E>selectList(command.getName(), param);
 		}
 		// issue #510 Collections & arrays support
+		//如果所需要的类型不是List的父类
 		if (!method.getReturnType().isAssignableFrom(result.getClass())) {
+			//所需要的返回值为数组类型
 			if (method.getReturnType().isArray()) {
+				//将List转成数组
 				return convertToArray(result);
 			} else {
+				//转换成其他声明的集合对象，比如set
 				return convertToDeclaredCollection(sqlSession.getConfiguration(), result);
 			}
 		}
@@ -188,23 +218,33 @@ public class MapperMethod {
 		return result;
 	}
 
+	/**
+	 * 转换成其他集合类型
+	 */
 	private <E> Object convertToDeclaredCollection(Configuration config, List<E> list) {
+		//创建返回类型的空对象
 		Object collection = config.getObjectFactory().create(method.getReturnType());
+		//返回对象的元对象
 		MetaObject metaObject = config.newMetaObject(collection);
+		//将结果list放入
 		metaObject.addAll(list);
 		return collection;
 	}
 
 	@SuppressWarnings("unchecked")
 	private <E> Object convertToArray(List<E> list) {
+		//数组每个元素类型
 		Class<?> arrayComponentType = method.getReturnType().getComponentType();
+		//创建长度为list大小类型为arrayComponentType的数组
 		Object array = Array.newInstance(arrayComponentType, list.size());
 		if (arrayComponentType.isPrimitive()) {
+			//如果是普通类型，遍历每一个set
 			for (int i = 0; i < list.size(); i++) {
 				Array.set(array, i, list.get(i));
 			}
 			return array;
 		} else {
+			//否则直接调用toArray方法
 			return list.toArray((E[]) array);
 		}
 	}
@@ -239,7 +279,7 @@ public class MapperMethod {
 
 	public static class SqlCommand {
 
-		//可以理解为唯一标识
+		//可以理解为唯一标识，一般为sql对应MapperStatement的id
 		private final String name;
 		//SELECT UPDATE这些，sql的类型
 		private final SqlCommandType type;
@@ -362,6 +402,12 @@ public class MapperMethod {
 			this.paramNameResolver = new ParamNameResolver(configuration, method);
 		}
 
+		/**
+		 * 将参数值进行转换：
+		 * 1. 无参数返回null
+		 * 2. 一个参数返回参数本身
+		 * 3. 多个参数返回ParamMap对象，key为参数名，value为参数值
+		 */
 		public Object convertArgsToSqlCommandParam(Object[] args) {
 			return paramNameResolver.getNamedParams(args);
 		}
