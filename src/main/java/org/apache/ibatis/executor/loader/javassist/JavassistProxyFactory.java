@@ -212,6 +212,7 @@ public class JavassistProxyFactory implements org.apache.ibatis.executor.loader.
 								//获得getter对应的属性
 								final String property = PropertyNamer.methodToProperty(methodName);
 								//是否在延迟加载映射队列中
+								//延迟加载的是某个对象中的某个属性，这个属性是存在延迟加载队列映射中的
 								if (lazyLoader.hasLoader(property)) {
 									//加载
 									lazyLoader.load(property);

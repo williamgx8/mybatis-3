@@ -856,6 +856,7 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 				//是嵌套列，允许延迟加载
 				if (propertyMapping.getNestedQueryId() != null && propertyMapping.isLazy()) {
 					//创建结果对象的代理，终于知道为什么开启懒加载后得到的对象都是代理对象
+					//这里的代理对象是整个结果的代理对象，不仅仅是需要嵌套查询列值的代理对象
 					resultObject = configuration.getProxyFactory()
 						.createProxy(resultObject, lazyLoader, configuration, objectFactory,
 							constructorArgTypes, constructorArgs);

@@ -748,9 +748,12 @@ public class Configuration {
 	}
 
 	public MappedStatement getMappedStatement(String id, boolean validateIncompleteStatements) {
+		//是否需要校验未完成Statement的解析
 		if (validateIncompleteStatements) {
+			//保证未完成的解析完成
 			buildAllStatements();
 		}
+		//获取id对应的Mapper
 		return mappedStatements.get(id);
 	}
 
