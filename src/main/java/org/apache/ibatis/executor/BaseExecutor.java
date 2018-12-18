@@ -156,6 +156,12 @@ public abstract class BaseExecutor implements Executor {
 		return query(ms, parameter, rowBounds, resultHandler, key, boundSql);
 	}
 
+	/**
+	 * deferredLoads和queryStack破烂玩意有什么用了，当存在嵌套查询的时候，且嵌套查询不能通过延迟加载的，
+	 * 比如在<constructor/>中存在某列需要select另一个查询语句的结果时，此时第一个查询出的结果还没有完成resultset的处理封装，
+	 * 在内部又需要递归再查询结果某个字段的值时，queryStack就会加一，并将该字段的值存入deferredLoads中，
+	 * 实际上是一级缓存中，当字段的值查询成功后，返回上一层，上一层的总对象再从缓存中取出之前在第二层塞入的那个嵌套查询列的值，放入对应属性上。
+	 */
 	@SuppressWarnings("unchecked")
 	@Override
 	public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds,
@@ -177,11 +183,6 @@ public abstract class BaseExecutor implements Executor {
 		try {
 			queryStack++;
 			//先从一级缓存中获取
-			/**
-			 * 如果开启了延迟加载，下面的查询只会查询出一层的对象，那些需要二次查询的列对象可能
-			 * 并不存在（除非缓存中已经包含延迟加载的内容），在查询时，如果发现存在嵌套查询的列
-			 * 会将其放入延迟加载队列中，就是成员变量deferredLoads中，下面会遍历
-			 */
 			list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
 			if (list != null) {
 				//处理本地缓存（只针对Callable存储过程）
@@ -246,7 +247,8 @@ public abstract class BaseExecutor implements Executor {
 	 * 创建缓存Key
 	 */
 	@Override
-	public CacheKey createCacheKey(MappedStatement ms, Object parameterObject, RowBounds rowBounds,
+	public CacheKey createCacheKey(MappedStatement ms, Object parameterObject, RowBounds
+		rowBounds,
 		BoundSql boundSql) {
 		if (closed) {
 			throw new ExecutorException("Executor was closed.");
@@ -261,7 +263,8 @@ public abstract class BaseExecutor implements Executor {
 		cacheKey.update(boundSql.getSql());
 		//参数映射列表
 		List<ParameterMapping> parameterMappings = boundSql.getParameterMappings();
-		TypeHandlerRegistry typeHandlerRegistry = ms.getConfiguration().getTypeHandlerRegistry();
+		TypeHandlerRegistry typeHandlerRegistry = ms.getConfiguration()
+			.getTypeHandlerRegistry();
 		// mimic DefaultParameterHandler logic
 		for (ParameterMapping parameterMapping : parameterMappings) {
 			if (parameterMapping.getMode() != ParameterMode.OUT) {
@@ -388,12 +391,14 @@ public abstract class BaseExecutor implements Executor {
 		if (ms.getStatementType() == StatementType.CALLABLE) {
 			final Object cachedParameter = localOutputParameterCache.getObject(key);
 			if (cachedParameter != null && parameter != null) {
-				final MetaObject metaCachedParameter = configuration.newMetaObject(cachedParameter);
+				final MetaObject metaCachedParameter = configuration
+					.newMetaObject(cachedParameter);
 				final MetaObject metaParameter = configuration.newMetaObject(parameter);
 				for (ParameterMapping parameterMapping : boundSql.getParameterMappings()) {
 					if (parameterMapping.getMode() != ParameterMode.IN) {
 						final String parameterName = parameterMapping.getProperty();
-						final Object cachedValue = metaCachedParameter.getValue(parameterName);
+						final Object cachedValue = metaCachedParameter
+							.getValue(parameterName);
 						metaParameter.setValue(parameterName, cachedValue);
 					}
 				}
@@ -401,7 +406,9 @@ public abstract class BaseExecutor implements Executor {
 		}
 	}
 
-	private <E> List<E> queryFromDatabase(MappedStatement ms, Object parameter, RowBounds rowBounds,
+	private <
+		E> List<E> queryFromDatabase(MappedStatement ms, Object parameter, RowBounds
+		rowBounds,
 		ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
 		List<E> list;
 		//往缓存中放一个占位符，该标识会使得延迟加载不执行
