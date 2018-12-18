@@ -177,12 +177,18 @@ public abstract class BaseExecutor implements Executor {
 		try {
 			queryStack++;
 			//先从一级缓存中获取
+			/**
+			 * 如果开启了延迟加载，下面的查询只会查询出一层的对象，那些需要二次查询的列对象可能
+			 * 并不存在（除非缓存中已经包含延迟加载的内容），在查询时，如果发现存在嵌套查询的列
+			 * 会将其放入延迟加载队列中，就是成员变量deferredLoads中，下面会遍历
+			 */
 			list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
 			if (list != null) {
 				//处理本地缓存（只针对Callable存储过程）
 				handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
 			} else {
-				//缓存获取失败查询DB
+				//缓存获取失败查询DB，此时哪怕数据库没有值，返回的也是一个空list，且内部会往key对应的cache
+				//中放入这个list
 				list = queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);
 			}
 		} finally {
@@ -468,6 +474,7 @@ public abstract class BaseExecutor implements Executor {
 		public void load() {
 			@SuppressWarnings("unchecked")
 			// we suppose we get back a List
+				//此时list必然有值，没有值也是一个空list
 				List<Object> list = (List<Object>) localCache.getObject(key);
 			Object value = resultExtractor.extractObjectFromList(list, targetType);
 			resultObject.setValue(property, value);
