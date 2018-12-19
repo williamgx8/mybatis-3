@@ -27,6 +27,9 @@ import org.apache.ibatis.reflection.ExceptionUtil;
 import org.apache.ibatis.session.SqlSession;
 
 /**
+ * Mapper接口的代理对象，因为Mapper接口是不能直接执行的，所以每次openSession之后，
+ * 会针对要执行的Mapper创建对应的代理，从而执行其中的方法
+ *
  * @author Clinton Begin
  * @author Eduardo Macarron
  */

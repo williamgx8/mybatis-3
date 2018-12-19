@@ -55,7 +55,7 @@ public abstract class BaseExecutor implements Executor {
 	protected Transaction transaction;
 	//包装的Executor
 	protected Executor wrapper;
-	//延迟加载队列
+	//用于要立即处理的嵌套查询保存嵌套查询的内容
 	protected ConcurrentLinkedQueue<DeferredLoad> deferredLoads;
 	//一级缓存，固定为PerpetualCache，不像二级缓存可以配置缓存策略
 	//因为一级缓存的作用范围是session，而executor是和session绑定的
@@ -157,7 +157,7 @@ public abstract class BaseExecutor implements Executor {
 	}
 
 	/**
-	 * deferredLoads和queryStack破烂玩意有什么用了，当存在嵌套查询的时候，且嵌套查询不能通过延迟加载的，
+	 * deferredLoads和queryStack的作用，当存在嵌套查询的时候，且嵌套查询不能通过延迟加载的，
 	 * 比如在<constructor/>中存在某列需要select另一个查询语句的结果时，此时第一个查询出的结果还没有完成resultset的处理封装，
 	 * 在内部又需要递归再查询结果某个字段的值时，queryStack就会加一，并将该字段的值存入deferredLoads中，
 	 * 实际上是一级缓存中，当字段的值查询成功后，返回上一层，上一层的总对象再从缓存中取出之前在第二层塞入的那个嵌套查询列的值，放入对应属性上。
@@ -195,13 +195,14 @@ public abstract class BaseExecutor implements Executor {
 		} finally {
 			queryStack--;
 		}
+		//顶层查询
 		if (queryStack == 0) {
-			//处理延迟加载队列，进行加载
+			//处理下一层递归保存的数据
 			for (DeferredLoad deferredLoad : deferredLoads) {
 				deferredLoad.load();
 			}
 			// issue #601
-			//清空延迟加载队列
+			//清空队列
 			deferredLoads.clear();
 			//如果一级缓存作用域为一次查询语句，清除缓存，默认为会话session级别
 			if (configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) {
